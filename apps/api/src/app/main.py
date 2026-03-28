@@ -12,7 +12,9 @@ from app.db.init_db import init_db
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     configure_logging()
-    init_db()
+    settings.validate_runtime()
+    if settings.app_env == "local":
+        init_db()
     yield
 
 

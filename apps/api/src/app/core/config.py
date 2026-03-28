@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     app_host: str = "0.0.0.0"
     app_port: int = 8000
     debug: bool = True
+    backend_api_key: str | None = Field(default=None, alias="BACKEND_API_KEY")
     backend_cors_origins: str = Field(
         default="http://localhost:3000,http://127.0.0.1:3000",
         alias="BACKEND_CORS_ORIGINS",
@@ -39,6 +40,27 @@ class Settings(BaseSettings):
     tinyfish_timeout_seconds: int = Field(default=45, alias="TINYFISH_TIMEOUT_SECONDS")
     tinyfish_stealth: bool = Field(default=True, alias="TINYFISH_STEALTH")
     tinyfish_use_mock: bool = Field(default=True, alias="TINYFISH_USE_MOCK")
+
+    def validate_runtime(self) -> None:
+        if self.app_env != "production":
+            return
+
+        issues: list[str] = []
+        if self.debug:
+            issues.append("DEBUG must be false in production.")
+        if self.tinyfish_use_mock:
+            issues.append("TINYFISH_USE_MOCK must be false in production.")
+        if not self.tinyfish_api_key:
+            issues.append("TINYFISH_API_KEY is required in production.")
+        if not self.openai_api_key:
+            issues.append("OPENAI_API_KEY is required in production.")
+        if self.database_url.startswith("sqlite"):
+            issues.append("DATABASE_URL must point to Postgres in production.")
+        if not self.backend_api_key:
+            issues.append("BACKEND_API_KEY is required in production.")
+
+        if issues:
+            raise ValueError("Invalid production configuration: " + " ".join(issues))
 
 
 @lru_cache

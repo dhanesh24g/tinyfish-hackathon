@@ -146,6 +146,8 @@ class HttpTinyFishProvider(TinyFishProvider):
 
 def get_tinyfish_provider() -> TinyFishProvider:
     settings = get_settings()
-    if settings.tinyfish_use_mock or not settings.tinyfish_api_key:
+    if settings.tinyfish_use_mock:
         return MockTinyFishProvider()
+    if not settings.tinyfish_api_key:
+        raise ValueError("TINYFISH_API_KEY is required when TINYFISH_USE_MOCK is false.")
     return HttpTinyFishProvider()
