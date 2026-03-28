@@ -39,8 +39,8 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[620px] h-[620px] rounded-full border border-primary/10 animate-spin-slow" />
       </div>
 
-      <div className="relative z-10 w-full max-w-[70rem] scale-[0.93] origin-center">
-        <div className="flex items-center justify-center gap-4 mb-4">
+      <div className="relative z-10 w-full max-w-[78rem] scale-100 md:scale-[1.04] origin-center">
+        <div className="flex items-center justify-center gap-4 mb-5">
           <div className="relative">
             <div className="w-14 h-14 md:w-16 md:h-16 rounded-full glass neon-border flex items-center justify-center animate-pulse-glow">
               <Brain className="w-8 h-8 md:w-9 md:h-9 text-primary" />
@@ -48,33 +48,31 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
             <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-primary animate-pulse" />
           </div>
           <div className="text-center">
-            <h1 className="text-3xl md:text-[2.7rem] font-bold leading-tight">
+            <h1 className="text-4xl md:text-[3.15rem] font-bold leading-tight">
               <span className="neon-text text-primary">AI Career</span>{" "}
               <span className="text-foreground">Interview Agent</span>
             </h1>
-            <p className="text-base md:text-lg text-muted-foreground max-w-3xl">
+            <p className="text-lg md:text-xl text-muted-foreground max-w-4xl">
               Start from a live job posting URL and let TinyFish prepare a researched, voice-ready mock interview.
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-2.5 mb-4">
+        <div className="flex flex-wrap justify-center gap-3 mb-5">
           <FeatureBadge icon={<Search className="w-4 h-4" />} text="TinyFish Research" />
           <FeatureBadge icon={<Mic className="w-4 h-4" />} text="Voice Interview" />
           <FeatureBadge icon={<Brain className="w-4 h-4" />} text="Adaptive Feedback" />
         </div>
 
-        <form onSubmit={handleSubmit} className="glass-card rounded-[1.5rem] p-4 md:p-5 neon-border shadow-2xl">
-          <div className="grid xl:grid-cols-[1.05fr_0.95fr] gap-4">
+        <form onSubmit={handleSubmit} className="glass-card rounded-[1.5rem] p-5 md:p-6 neon-border shadow-2xl">
+          <div className="grid xl:grid-cols-[1.05fr_0.95fr] gap-5">
             <section className="space-y-3">
               <div>
                 <p className="text-sm font-medium uppercase tracking-[0.22em] text-primary/80 mb-1.5">
                   Interview Setup
                 </p>
                 <h2 className="text-2xl md:text-[2rem] font-semibold text-foreground">Job Posting</h2>
-                <p className="text-base text-muted-foreground mt-1.5">
-                  Provide a job posting URL so TinyFish can browse the page, extract the role, and research likely interview patterns.
-                </p>
+                
               </div>
 
               <div className="glass rounded-2xl border border-primary/15 p-3.5">
@@ -84,7 +82,6 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-foreground">Job Posting URL</p>
-                    <p className="text-xs text-muted-foreground">Required</p>
                   </div>
                 </div>
                 <label htmlFor="jobPostingUrl" className="sr-only">
@@ -99,18 +96,14 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
                   className="bg-secondary/50 border-border/50 focus:border-primary h-12 text-base text-foreground placeholder:text-muted-foreground"
                   required
                 />
-                <p className="mt-3 text-sm text-muted-foreground">
-                  TinyFish will use this URL as the primary interactive web scraping source.
-                </p>
+                
               </div>
             </section>
 
             <section className="space-y-3">
               <div>
                 <h2 className="text-2xl md:text-[2rem] font-semibold text-foreground">Candidate Profile</h2>
-                <p className="text-base text-muted-foreground mt-1.5">
-                  Keep this lightweight for the hackathon. First name is required, everything else is optional for now.
-                </p>
+                
               </div>
 
               <div className="grid md:grid-cols-2 gap-3">
@@ -150,15 +143,13 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
           </div>
 
           <div className="mt-4 pt-4 border-t border-border/40 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <div className="flex items-start gap-3 max-w-2xl">
+            <div className="flex items-center justify-center gap-3 max-w-2xl text-center md:text-left">
               <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                 <UserRound className="w-4 h-4" />
               </div>
               <div>
                 <p className="text-sm font-medium text-foreground">Voice-first mock interview workflow</p>
-                <p className="text-sm text-muted-foreground">
-                  After submission, TinyFish researches the role and the app launches a live interviewer that can speak questions and transcribe answers.
-                </p>
+                
               </div>
             </div>
 
