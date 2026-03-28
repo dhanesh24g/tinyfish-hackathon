@@ -1,34 +1,29 @@
 "use client"
 
 import { useState } from "react"
-import { Brain, FileText, Mic, Search, Sparkles, UserRound } from "lucide-react"
+import { Brain, Globe, Mic, Search, Sparkles, UserRound } from "lucide-react"
+import type { JobInput } from "@/app/page"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import type { JobInput } from "@/app/page"
 
 interface HeroSectionProps {
   onStartResearch: (input: JobInput) => void
 }
 
 export function HeroSection({ onStartResearch }: HeroSectionProps) {
-  const [jobDescription, setJobDescription] = useState("")
-  const [candidateName, setCandidateName] = useState("")
-  const [candidateEmail, setCandidateEmail] = useState("")
-  const [candidatePhone, setCandidatePhone] = useState("")
-  const [candidateUniversity, setCandidateUniversity] = useState("")
-  const [candidateExperience, setCandidateExperience] = useState("")
+  const [jobPostingUrl, setJobPostingUrl] = useState("")
+  const [firstName, setFirstName] = useState("")
+  const [email, setEmail] = useState("")
+  const [currentFocus, setCurrentFocus] = useState("")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (jobDescription && candidateName && candidateEmail) {
+    if (jobPostingUrl && firstName) {
       onStartResearch({
-        jobDescription,
-        candidateName,
-        candidateEmail,
-        candidatePhone,
-        candidateUniversity,
-        candidateExperience,
+        jobPostingUrl,
+        firstName,
+        email,
+        currentFocus,
       })
     }
   }
@@ -37,7 +32,10 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
     <div className="h-screen flex items-center justify-center px-4 py-4 relative overflow-hidden">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-primary/10 blur-3xl animate-float" />
-        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-accent/10 blur-3xl animate-float" style={{ animationDelay: "1s" }} />
+        <div
+          className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-accent/10 blur-3xl animate-float"
+          style={{ animationDelay: "1s" }}
+        />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[620px] h-[620px] rounded-full border border-primary/10 animate-spin-slow" />
       </div>
 
@@ -55,13 +53,13 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
               <span className="text-foreground">Interview Agent</span>
             </h1>
             <p className="text-base md:text-lg text-muted-foreground max-w-3xl">
-              Configure a professional interview preparation session using the job description and the candidate profile.
+              Start from a live job posting URL and let TinyFish prepare a researched, voice-ready mock interview.
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap justify-center gap-2.5 mb-4">
-          <FeatureBadge icon={<Search className="w-4 h-4" />} text="Role Intelligence" />
+          <FeatureBadge icon={<Search className="w-4 h-4" />} text="TinyFish Research" />
           <FeatureBadge icon={<Mic className="w-4 h-4" />} text="Voice Interview" />
           <FeatureBadge icon={<Brain className="w-4 h-4" />} text="Adaptive Feedback" />
         </div>
@@ -73,101 +71,78 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
                 <p className="text-sm font-medium uppercase tracking-[0.22em] text-primary/80 mb-1.5">
                   Interview Setup
                 </p>
-                <h2 className="text-2xl md:text-[2rem] font-semibold text-foreground">
-                  Job Description
-                </h2>
+                <h2 className="text-2xl md:text-[2rem] font-semibold text-foreground">Job Posting</h2>
                 <p className="text-base text-muted-foreground mt-1.5">
-                  Paste the complete role details so the agent can prepare relevant questions and assess fit accurately.
+                  Provide a job posting URL so TinyFish can browse the page, extract the role, and research likely interview patterns.
                 </p>
               </div>
 
               <div className="glass rounded-2xl border border-primary/15 p-3.5">
                 <div className="flex items-center gap-3 mb-2.5">
                   <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                    <FileText className="w-4 h-4" />
+                    <Globe className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-foreground">Job Description</p>
+                    <p className="text-sm font-semibold text-foreground">Job Posting URL</p>
                     <p className="text-xs text-muted-foreground">Required</p>
                   </div>
                 </div>
-                <label htmlFor="jobDescription" className="sr-only">
-                  Job Description
+                <label htmlFor="jobPostingUrl" className="sr-only">
+                  Job Posting URL
                 </label>
-                <Textarea
-                  id="jobDescription"
-                  placeholder="Paste the role summary, responsibilities, technical requirements, qualifications, and any hiring expectations..."
-                  value={jobDescription}
-                  onChange={(e) => setJobDescription(e.target.value)}
-                  className="bg-secondary/50 border-border/50 focus:border-primary min-h-[210px] resize-none text-base text-foreground placeholder:text-muted-foreground"
+                <Input
+                  id="jobPostingUrl"
+                  type="url"
+                  placeholder="https://company.com/careers/software-engineer"
+                  value={jobPostingUrl}
+                  onChange={(e) => setJobPostingUrl(e.target.value)}
+                  className="bg-secondary/50 border-border/50 focus:border-primary h-12 text-base text-foreground placeholder:text-muted-foreground"
                   required
                 />
+                <p className="mt-3 text-sm text-muted-foreground">
+                  TinyFish will use this URL as the primary interactive web scraping source.
+                </p>
               </div>
             </section>
 
             <section className="space-y-3">
               <div>
-                <h2 className="text-2xl md:text-[2rem] font-semibold text-foreground">
-                  Candidate Profile
-                </h2>
+                <h2 className="text-2xl md:text-[2rem] font-semibold text-foreground">Candidate Profile</h2>
                 <p className="text-base text-muted-foreground mt-1.5">
-                  Add the candidate details needed to personalize the live interview and final evaluation.
+                  Keep this lightweight for the hackathon. First name is required, everything else is optional for now.
                 </p>
               </div>
 
               <div className="grid md:grid-cols-2 gap-3">
-                <FormField label="Full Name" required htmlFor="candidateName">
+                <FormField label="First Name" required htmlFor="firstName">
                   <Input
-                    id="candidateName"
-                    placeholder="Enter full name"
-                    value={candidateName}
-                    onChange={(e) => setCandidateName(e.target.value)}
+                    id="firstName"
+                    placeholder="Enter first name"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
                     className="bg-secondary/50 border-border/50 focus:border-primary h-11 text-base text-foreground placeholder:text-muted-foreground"
                     required
                   />
                 </FormField>
 
-                <FormField label="Email Address" required htmlFor="candidateEmail">
+                <FormField label="Email Address" htmlFor="email">
                   <Input
-                    id="candidateEmail"
+                    id="email"
                     type="email"
-                    placeholder="Enter email address"
-                    value={candidateEmail}
-                    onChange={(e) => setCandidateEmail(e.target.value)}
-                    className="bg-secondary/50 border-border/50 focus:border-primary h-11 text-base text-foreground placeholder:text-muted-foreground"
-                    required
-                  />
-                </FormField>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-3">
-                <FormField label="Contact Number" htmlFor="candidatePhone">
-                  <Input
-                    id="candidatePhone"
-                    placeholder="Enter phone number"
-                    value={candidatePhone}
-                    onChange={(e) => setCandidatePhone(e.target.value)}
-                    className="bg-secondary/50 border-border/50 focus:border-primary h-11 text-base text-foreground placeholder:text-muted-foreground"
-                  />
-                </FormField>
-
-                <FormField label="Experience Level" htmlFor="candidateExperience">
-                  <Input
-                    id="candidateExperience"
-                    placeholder="e.g. Final-year student / 2 years experience"
-                    value={candidateExperience}
-                    onChange={(e) => setCandidateExperience(e.target.value)}
+                    placeholder="Optional"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="bg-secondary/50 border-border/50 focus:border-primary h-11 text-base text-foreground placeholder:text-muted-foreground"
                   />
                 </FormField>
               </div>
 
-              <FormField label="Education / Current Organization" htmlFor="candidateUniversity">
+              <FormField label="Current Focus" htmlFor="currentFocus">
                 <Input
-                  id="candidateUniversity"
-                  placeholder="e.g. NUS Computer Science / Software Engineer at ABC"
-                  value={candidateUniversity}
-                  onChange={(e) => setCandidateUniversity(e.target.value)}
+                  id="currentFocus"
+                  placeholder="Optional: backend, systems, internship prep, product..."
+                  value={currentFocus}
+                  onChange={(e) => setCurrentFocus(e.target.value)}
                   className="bg-secondary/50 border-border/50 focus:border-primary h-11 text-base text-foreground placeholder:text-muted-foreground"
                 />
               </FormField>
@@ -180,9 +155,9 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
                 <UserRound className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-sm font-medium text-foreground">Professional interview intake</p>
+                <p className="text-sm font-medium text-foreground">Voice-first mock interview workflow</p>
                 <p className="text-sm text-muted-foreground">
-                  After submission, the agent can analyze the job description, tailor the interview plan, and prepare the voice session.
+                  After submission, TinyFish researches the role and the app launches a live interviewer that can speak questions and transcribe answers.
                 </p>
               </div>
             </div>
@@ -191,7 +166,7 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
               type="submit"
               size="lg"
               className="w-full md:w-auto md:min-w-[260px] h-11 md:h-12 text-base font-semibold bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/25"
-              disabled={!jobDescription || !candidateName || !candidateEmail}
+              disabled={!jobPostingUrl || !firstName}
             >
               <Sparkles className="w-4 h-4 mr-2" />
               Begin Interview Preparation
@@ -200,7 +175,7 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
         </form>
 
         <p className="text-center text-sm text-muted-foreground mt-4">
-          Powered by agent orchestration, voice AI, and interview intelligence
+          Powered by TinyFish web intelligence, backend orchestration, and browser voice APIs
         </p>
       </div>
     </div>

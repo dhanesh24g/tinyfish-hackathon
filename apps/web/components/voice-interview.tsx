@@ -1,69 +1,187 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Mic, MicOff, Volume2, SkipForward, CheckCircle2 } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { CheckCircle2, Loader2, Mic, MicOff, Send, Volume2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  getInterviewFeedback,
+  sendInterviewEvent,
+  stopInterviewSession,
+  type FeedbackReportResponse,
+  type InterviewSessionResponse,
+  type JobTargetResponse,
+  type ResearchRunResponse,
+} from "@/lib/api"
 
 interface VoiceInterviewProps {
-  questions: string[]
-  currentIndex: number
-  onNextQuestion: () => void
-  onComplete: () => void
+  firstName: string
+  jobTarget: JobTargetResponse
+  researchResult: ResearchRunResponse
+  initialSession: InterviewSessionResponse
+  onComplete: (report: FeedbackReportResponse, session: InterviewSessionResponse) => void
 }
 
-type InterviewState = "speaking" | "listening" | "idle"
+type InterviewState = "speaking" | "listening" | "idle" | "submitting"
 
-export function VoiceInterview({ questions, currentIndex, onNextQuestion, onComplete }: VoiceInterviewProps) {
+type SpeechRecognitionCtor = new () => SpeechRecognition
+
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionCtor
+    webkitSpeechRecognition?: SpeechRecognitionCtor
+  }
+
+  interface SpeechRecognition extends EventTarget {
+    continuous: boolean
+    interimResults: boolean
+    lang: string
+    onresult: ((event: SpeechRecognitionEvent) => void) | null
+    onerror: ((event: SpeechRecognitionErrorEvent) => void) | null
+    onend: (() => void) | null
+    start(): void
+    stop(): void
+  }
+
+  interface SpeechRecognitionEvent {
+    results: SpeechRecognitionResultList
+  }
+
+  interface SpeechRecognitionErrorEvent {
+    error: string
+  }
+
+  interface SpeechRecognitionResultList {
+    length: number
+    [index: number]: SpeechRecognitionResult
+  }
+
+  interface SpeechRecognitionResult {
+    isFinal: boolean
+    length: number
+    [index: number]: SpeechRecognitionAlternative
+  }
+
+  interface SpeechRecognitionAlternative {
+    transcript: string
+  }
+}
+
+function getActivePrompt(session: InterviewSessionResponse): string {
+  const reversed = [...session.turns].reverse()
+  const nextPrompt = reversed.find(
+    (turn) =>
+      turn.user_response === null &&
+      (turn.event_type === "agent_question" ||
+        turn.event_type === "system_prompt" ||
+        turn.event_type === "clarification_request"),
+  )
+  return nextPrompt?.agent_prompt || "Tell me about yourself."
+}
+
+export function VoiceInterview({
+  firstName,
+  jobTarget,
+  researchResult,
+  initialSession,
+  onComplete,
+}: VoiceInterviewProps) {
+  const [session, setSession] = useState(initialSession)
   const [state, setState] = useState<InterviewState>("speaking")
   const [isRecording, setIsRecording] = useState(false)
   const [recordingTime, setRecordingTime] = useState(0)
+  const [transcript, setTranscript] = useState("")
+  const [interimTranscript, setInterimTranscript] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [speechSupported, setSpeechSupported] = useState(false)
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
 
-  const currentQuestion = questions[currentIndex]
-  const isLastQuestion = currentIndex === questions.length - 1
+  const currentQuestion = useMemo(() => getActivePrompt(session), [session])
+  const totalQuestions = Math.max(researchResult.questions.length, 1)
+  const answeredQuestions = session.turns.filter((turn) => turn.user_response).length
+  const progressCount = Math.min(answeredQuestions + 1, totalQuestions)
 
-  // Simulate AI speaking the question
   useEffect(() => {
+    const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (SpeechRecognitionImpl) {
+      setSpeechSupported(true)
+      const recognition = new SpeechRecognitionImpl()
+      recognition.continuous = true
+      recognition.interimResults = true
+      recognition.lang = "en-US"
+
+      recognition.onresult = (event) => {
+        let finalText = ""
+        let interimText = ""
+
+        for (let i = 0; i < event.results.length; i += 1) {
+          const result = event.results[i]
+          const text = result[0]?.transcript ?? ""
+          if (result.isFinal) {
+            finalText += text
+          } else {
+            interimText += text
+          }
+        }
+
+        if (finalText) {
+          setTranscript((prev) => `${prev} ${finalText}`.trim())
+        }
+        setInterimTranscript(interimText.trim())
+      }
+
+      recognition.onerror = (event) => {
+        setError(`Speech recognition error: ${event.error}`)
+        setIsRecording(false)
+        setState("idle")
+      }
+
+      recognition.onend = () => {
+        setIsRecording(false)
+        setInterimTranscript("")
+        setState((prev) => (prev === "submitting" ? prev : "idle"))
+      }
+
+      recognitionRef.current = recognition
+    }
+
+    return () => {
+      window.speechSynthesis?.cancel()
+      recognitionRef.current?.stop()
+    }
+  }, [])
+
+  useEffect(() => {
+    setTranscript("")
+    setInterimTranscript("")
+    setError(null)
     setState("speaking")
-    const speakDuration = 3000 + (currentQuestion?.length || 0) * 30
-    
-    const timer = setTimeout(() => {
-      setState("idle")
-    }, speakDuration)
 
-    return () => clearTimeout(timer)
-  }, [currentIndex, currentQuestion])
+    const utterance = new SpeechSynthesisUtterance(currentQuestion)
+    utterance.rate = 0.98
+    utterance.pitch = 1
+    utterance.onend = () => setState("idle")
 
-  // Recording timer
-  useEffect(() => {
-    let interval: NodeJS.Timeout
-    if (isRecording) {
-      interval = setInterval(() => {
-        setRecordingTime(prev => prev + 1)
-      }, 1000)
-    }
-    return () => clearInterval(interval)
-  }, [isRecording])
-
-  const handleStartRecording = () => {
-    setIsRecording(true)
-    setRecordingTime(0)
-    setState("listening")
-  }
-
-  const handleStopRecording = () => {
-    setIsRecording(false)
-    setState("idle")
-  }
-
-  const handleNext = () => {
-    setIsRecording(false)
-    setRecordingTime(0)
-    if (isLastQuestion) {
-      onComplete()
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel()
+      window.speechSynthesis.speak(utterance)
     } else {
-      onNextQuestion()
+      const timer = window.setTimeout(() => setState("idle"), 1800)
+      return () => window.clearTimeout(timer)
     }
-  }
+
+    return () => {
+      window.speechSynthesis.cancel()
+    }
+  }, [currentQuestion])
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | undefined
+    if (isRecording) {
+      interval = setInterval(() => setRecordingTime((prev) => prev + 1), 1000)
+    }
+    return () => interval && clearInterval(interval)
+  }, [isRecording])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -71,91 +189,139 @@ export function VoiceInterview({ questions, currentIndex, onNextQuestion, onComp
     return `${mins}:${secs.toString().padStart(2, "0")}`
   }
 
+  const handleStartRecording = () => {
+    setError(null)
+    setRecordingTime(0)
+    setIsRecording(true)
+    setState("listening")
+    recognitionRef.current?.start()
+  }
+
+  const handleStopRecording = () => {
+    recognitionRef.current?.stop()
+    setIsRecording(false)
+    setState("idle")
+  }
+
+  const handleSubmitAnswer = async () => {
+    const answer = `${transcript} ${interimTranscript}`.trim()
+    if (!answer) {
+      setError("Speak or type an answer before submitting.")
+      return
+    }
+
+    setState("submitting")
+    setError(null)
+
+    try {
+      const updatedSession = await sendInterviewEvent(session.id, {
+        event_type: "user_text",
+        payload: answer,
+      })
+
+      setSession(updatedSession)
+      setTranscript("")
+      setInterimTranscript("")
+      setRecordingTime(0)
+
+      if (updatedSession.status === "completed") {
+        const report = await getInterviewFeedback(updatedSession.id)
+        onComplete(report, updatedSession)
+        return
+      }
+
+      setState("speaking")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to submit answer")
+      setState("idle")
+    }
+  }
+
+  const handleEndInterview = async () => {
+    try {
+      const stoppedSession = await stopInterviewSession(session.id)
+      const report = await getInterviewFeedback(stoppedSession.id)
+      onComplete(report, stoppedSession)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to end interview")
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
-      <div className="max-w-2xl w-full">
-        {/* Progress indicator */}
+      <div className="max-w-3xl w-full">
         <div className="flex items-center justify-center gap-2 mb-8">
-          {questions.map((_, index) => (
-            <div 
+          {Array.from({ length: totalQuestions }).map((_, index) => (
+            <div
               key={index}
               className={`w-3 h-3 rounded-full transition-all ${
-                index < currentIndex 
-                  ? "bg-primary" 
-                  : index === currentIndex 
-                    ? "bg-primary animate-pulse w-4 h-4" 
+                index + 1 < progressCount
+                  ? "bg-primary"
+                  : index + 1 === progressCount
+                    ? "bg-primary animate-pulse w-4 h-4"
                     : "bg-secondary"
               }`}
             />
           ))}
         </div>
 
-        {/* Question counter */}
         <div className="text-center mb-4">
           <span className="text-sm text-muted-foreground">
-            Question {currentIndex + 1} of {questions.length}
+            {jobTarget.role_title || "Interview"} at {jobTarget.company_name || "target company"}
           </span>
         </div>
 
-        {/* Voice Assistant UI */}
         <div className="glass-card rounded-3xl p-8 md:p-12 neon-border mb-8">
-          {/* AI Avatar */}
           <div className="flex justify-center mb-8">
             <div className="relative">
-              <div className={`w-32 h-32 rounded-full glass flex items-center justify-center transition-all duration-300 ${
-                state === "speaking" ? "animate-pulse-glow ring-4 ring-primary/30" : 
-                state === "listening" ? "ring-4 ring-destructive/30" : ""
-              }`}>
+              <div
+                className={`w-32 h-32 rounded-full glass flex items-center justify-center transition-all duration-300 ${
+                  state === "speaking"
+                    ? "animate-pulse-glow ring-4 ring-primary/30"
+                    : state === "listening"
+                      ? "ring-4 ring-destructive/30"
+                      : ""
+                }`}
+              >
                 {state === "speaking" ? (
                   <Volume2 className="w-14 h-14 text-primary animate-pulse" />
                 ) : state === "listening" ? (
                   <Mic className="w-14 h-14 text-destructive" />
+                ) : state === "submitting" ? (
+                  <Loader2 className="w-14 h-14 text-primary animate-spin" />
                 ) : (
                   <Mic className="w-14 h-14 text-muted-foreground" />
                 )}
               </div>
-              
-              {/* Voice waveform */}
-              {(state === "speaking" || state === "listening") && (
-                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex items-end gap-1 h-8">
-                  {[...Array(7)].map((_, i) => (
-                    <div
-                      key={i}
-                      className={`w-1 rounded-full animate-wave ${
-                        state === "speaking" ? "bg-primary" : "bg-destructive"
-                      }`}
-                      style={{
-                        height: `${12 + Math.random() * 20}px`,
-                        animationDelay: `${i * 0.1}s`,
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Status */}
           <div className="text-center mb-6">
-            <p className={`text-sm font-medium ${
-              state === "speaking" ? "text-primary" : 
-              state === "listening" ? "text-destructive" : 
-              "text-muted-foreground"
-            }`}>
-              {state === "speaking" ? "AI is speaking..." : 
-               state === "listening" ? "Listening to your answer..." : 
-               "Ready for your answer"}
+            <p
+              className={`text-sm font-medium ${
+                state === "speaking"
+                  ? "text-primary"
+                  : state === "listening"
+                    ? "text-destructive"
+                    : "text-muted-foreground"
+              }`}
+            >
+              {state === "speaking"
+                ? `AI interviewer is speaking to ${firstName}...`
+                : state === "listening"
+                  ? "Listening for your answer..."
+                  : state === "submitting"
+                    ? "Submitting your answer..."
+                    : "Ready when you are"}
             </p>
           </div>
 
-          {/* Question */}
-          <div className="bg-secondary/50 rounded-xl p-6 mb-8">
+          <div className="bg-secondary/50 rounded-xl p-6 mb-6">
             <p className="text-lg md:text-xl text-foreground text-center leading-relaxed">
               &ldquo;{currentQuestion}&rdquo;
             </p>
           </div>
 
-          {/* Recording Timer */}
           {isRecording && (
             <div className="text-center mb-6">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-destructive/20 text-destructive">
@@ -165,17 +331,34 @@ export function VoiceInterview({ questions, currentIndex, onNextQuestion, onComp
             </div>
           )}
 
-          {/* Controls */}
+          <div className="space-y-4 mb-6">
+            <div className="rounded-xl border border-border/40 bg-secondary/30 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground mb-2">Live Transcript</p>
+              <p className="text-sm text-foreground min-h-8">
+                {`${transcript} ${interimTranscript}`.trim() || "Your spoken answer will appear here. You can edit it before submitting."}
+              </p>
+            </div>
+
+            <Textarea
+              value={transcript}
+              onChange={(event) => setTranscript(event.target.value)}
+              placeholder="Type your answer here if you prefer text input or want to edit the speech transcript before sending."
+              className="min-h-[120px] bg-secondary/50 border-border/50 focus:border-primary"
+            />
+          </div>
+
+          {error && <p className="text-sm text-destructive mb-4 text-center">{error}</p>}
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             {!isRecording ? (
               <Button
                 size="lg"
                 onClick={handleStartRecording}
-                disabled={state === "speaking"}
+                disabled={!speechSupported || state === "speaking" || state === "submitting"}
                 className="h-14 px-8 text-lg font-semibold bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50"
               >
                 <Mic className="w-5 h-5 mr-2" />
-                Start Recording
+                {speechSupported ? "Start Voice Answer" : "Speech Not Supported"}
               </Button>
             ) : (
               <Button
@@ -191,31 +374,24 @@ export function VoiceInterview({ questions, currentIndex, onNextQuestion, onComp
 
             <Button
               size="lg"
-              variant="outline"
-              onClick={handleNext}
-              className="h-14 px-8 text-lg font-semibold border-primary/50 hover:bg-primary/10 text-foreground"
+              onClick={handleSubmitAnswer}
+              disabled={state === "speaking" || state === "submitting"}
+              className="h-14 px-8 text-lg font-semibold bg-primary/90 hover:bg-primary text-primary-foreground"
             >
-              {isLastQuestion ? (
-                <>
-                  <CheckCircle2 className="w-5 h-5 mr-2" />
-                  Finish Interview
-                </>
-              ) : (
-                <>
-                  <SkipForward className="w-5 h-5 mr-2" />
-                  Next Question
-                </>
-              )}
+              <Send className="w-5 h-5 mr-2" />
+              Submit Answer
             </Button>
           </div>
         </div>
 
-        {/* Tips */}
-        <div className="glass rounded-xl p-4">
-          <p className="text-sm text-muted-foreground text-center">
-            <span className="text-primary font-medium">Tip:</span> Take your time to think before answering. 
-            Speak clearly and provide specific examples when possible.
+        <div className="glass rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-muted-foreground text-center sm:text-left">
+            Voice mode uses browser text-to-speech for the AI and browser speech-to-text for your answer. You can always edit or type before sending.
           </p>
+          <Button variant="outline" onClick={handleEndInterview}>
+            <CheckCircle2 className="w-4 h-4 mr-2" />
+            End Interview
+          </Button>
         </div>
       </div>
     </div>

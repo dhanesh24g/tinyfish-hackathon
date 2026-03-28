@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from openai import OpenAI
 
 from app.core.config import get_settings

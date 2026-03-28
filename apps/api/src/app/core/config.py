@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field, field_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,8 +18,9 @@ class Settings(BaseSettings):
     app_host: str = "0.0.0.0"
     app_port: int = 8000
     debug: bool = True
-    backend_cors_origins: list[str] = Field(
-        default=["http://localhost:3000", "http://127.0.0.1:3000"],
+    backend_api_key: str | None = Field(default=None, alias="BACKEND_API_KEY")
+    backend_cors_origins: str = Field(
+        default="http://localhost:3000,http://127.0.0.1:3000",
         alias="BACKEND_CORS_ORIGINS",
     )
 
@@ -40,12 +41,26 @@ class Settings(BaseSettings):
     tinyfish_stealth: bool = Field(default=True, alias="TINYFISH_STEALTH")
     tinyfish_use_mock: bool = Field(default=True, alias="TINYFISH_USE_MOCK")
 
-    @field_validator("backend_cors_origins", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, value):
-        if isinstance(value, str):
-            return [item.strip() for item in value.split(",") if item.strip()]
-        return value
+    def validate_runtime(self) -> None:
+        if self.app_env != "production":
+            return
+
+        issues: list[str] = []
+        if self.debug:
+            issues.append("DEBUG must be false in production.")
+        if self.tinyfish_use_mock:
+            issues.append("TINYFISH_USE_MOCK must be false in production.")
+        if not self.tinyfish_api_key:
+            issues.append("TINYFISH_API_KEY is required in production.")
+        if not self.openai_api_key:
+            issues.append("OPENAI_API_KEY is required in production.")
+        if self.database_url.startswith("sqlite"):
+            issues.append("DATABASE_URL must point to Postgres in production.")
+        if not self.backend_api_key:
+            issues.append("BACKEND_API_KEY is required in production.")
+
+        if issues:
+            raise ValueError("Invalid production configuration: " + " ".join(issues))
 
 
 @lru_cache

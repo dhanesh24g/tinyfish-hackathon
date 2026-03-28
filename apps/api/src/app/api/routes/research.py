@@ -10,7 +10,7 @@ from app.services.repositories import JobTargetRepository
 router = APIRouter()
 
 
-@router.post("/run", response_model=ResearchRunResponse)
+@router.post("/run", response_model=None)
 def run_research(
     payload: ResearchRunRequest,
     db: Session = Depends(get_db),

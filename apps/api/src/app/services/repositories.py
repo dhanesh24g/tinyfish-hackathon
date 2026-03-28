@@ -46,20 +46,24 @@ class SourceRepository:
         self.db = db
 
     def replace_for_job_target(self, job_target_id: int, documents: list[dict]) -> list[Source]:
-        self.db.query(Source).filter(Source.job_target_id == job_target_id).delete()
-        items = [
-            Source(
-                job_target_id=job_target_id,
-                source_url=document["url"],
-                source_type="research",
-                raw_tinyfish_result=document.get("raw"),
-                parsed_text=document.get("text"),
-                fetch_status="completed",
-            )
-            for document in documents
-        ]
-        self.db.add_all(items)
-        self.db.commit()
+        try:
+            self.db.query(Source).filter(Source.job_target_id == job_target_id).delete(synchronize_session=False)
+            items = [
+                Source(
+                    job_target_id=job_target_id,
+                    source_url=document["url"],
+                    source_type="research",
+                    raw_tinyfish_result=document.get("raw"),
+                    parsed_text=document.get("text"),
+                    fetch_status="completed",
+                )
+                for document in documents
+            ]
+            self.db.add_all(items)
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
         for item in items:
             self.db.refresh(item)
         return items
@@ -73,24 +77,28 @@ class QuestionRepository:
         self.db = db
 
     def replace_for_job_target(self, job_target_id: int, questions: list[dict]) -> list[Question]:
-        self.db.query(Question).filter(Question.job_target_id == job_target_id).delete()
-        items = [
-            Question(
-                job_target_id=job_target_id,
-                text=question["text"],
-                category=question.get("category"),
-                frequency_score=question.get("frequency_score", 0),
-                recency_score=question.get("recency_score", 0),
-                relevance_score=question.get("relevance_score", 0),
-                importance_score=question.get("importance_score", 0),
-                final_score=question.get("final_score", 0),
-                rationale=question.get("rationale"),
-                is_fallback=question.get("is_fallback", False),
-            )
-            for question in questions
-        ]
-        self.db.add_all(items)
-        self.db.commit()
+        try:
+            self.db.query(Question).filter(Question.job_target_id == job_target_id).delete(synchronize_session=False)
+            items = [
+                Question(
+                    job_target_id=job_target_id,
+                    text=question["text"],
+                    category=question.get("category"),
+                    frequency_score=question.get("frequency_score", 0),
+                    recency_score=question.get("recency_score", 0),
+                    relevance_score=question.get("relevance_score", 0),
+                    importance_score=question.get("importance_score", 0),
+                    final_score=question.get("final_score", 0),
+                    rationale=question.get("rationale"),
+                    is_fallback=question.get("is_fallback", False),
+                )
+                for question in questions
+            ]
+            self.db.add_all(items)
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
         for item in items:
             self.db.refresh(item)
         return items

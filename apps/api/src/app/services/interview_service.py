@@ -30,6 +30,8 @@ class InterviewService:
     def handle_event(self, session: InterviewSession, job_target: JobTarget, event_type: str, payload: str | None):
         questions = self.question_repo.list_by_job_target(job_target.id)
         normalized = self.interview_agent.normalize_event_payload(event_type, payload)
+        answered_turn_count = sum(1 for turn in session.turns if turn.user_response is not None)
+        is_intro_answer = answered_turn_count == 0 and bool(session.turns)
 
         if event_type == "clarification_request":
             current_prompt = session.turns[-1].agent_prompt if session.turns else self.interview_agent.starting_prompt()
@@ -47,9 +49,9 @@ class InterviewService:
         if event_type == "stop_interview":
             return self.stop_session(session, "user_requested_stop")
 
-        if session.current_question_index == 0 and session.turns:
+        if is_intro_answer:
             current_question = session.turns[0].agent_prompt
-            question_id = questions[0].id if questions else None
+            question_id = None
         else:
             question = questions[min(session.current_question_index, max(len(questions) - 1, 0))] if questions else None
             current_question = question.text if question else self.interview_agent.starting_prompt()
@@ -79,7 +81,7 @@ class InterviewService:
             }
         )
 
-        next_index = session.current_question_index + 1
+        next_index = session.current_question_index if is_intro_answer else session.current_question_index + 1
         session.current_question_index = next_index
         if next_index < len(questions):
             next_question = questions[next_index].text

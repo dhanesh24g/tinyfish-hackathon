@@ -63,7 +63,7 @@ class MockTinyFishProvider(TinyFishProvider):
         )
 
     async def fetch_page_async(self, url: str) -> TinyFishResult:
-        await asyncio.sleep(0)
+        await asyncio.sleep(0.35)
         return self.fetch_page(url)
 
     async def fetch_many_async(self, urls: list[str]) -> list[TinyFishResult]:
@@ -72,6 +72,7 @@ class MockTinyFishProvider(TinyFishProvider):
     async def stream_progress(self, urls: list[str]):
         for index, url in enumerate(urls, start=1):
             result = await self.fetch_page_async(url)
+            await asyncio.sleep(0.8)
             yield {"index": index, "total": len(urls), "url": url, "status": "completed", "result": result.raw}
 
 
@@ -145,6 +146,8 @@ class HttpTinyFishProvider(TinyFishProvider):
 
 def get_tinyfish_provider() -> TinyFishProvider:
     settings = get_settings()
-    if settings.tinyfish_use_mock or not settings.tinyfish_api_key:
+    if settings.tinyfish_use_mock:
         return MockTinyFishProvider()
+    if not settings.tinyfish_api_key:
+        raise ValueError("TINYFISH_API_KEY is required when TINYFISH_USE_MOCK is false.")
     return HttpTinyFishProvider()

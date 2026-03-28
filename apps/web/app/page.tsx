@@ -1,104 +1,95 @@
 "use client"
 
 import { useState } from "react"
-import { HeroSection } from "@/components/hero-section"
 import { AgentThinkingPanel } from "@/components/agent-thinking-panel"
-import { InterviewQuestions } from "@/components/interview-questions"
-import { VoiceInterview } from "@/components/voice-interview"
 import { FeedbackDashboard } from "@/components/feedback-dashboard"
+import { HeroSection } from "@/components/hero-section"
+import { VoiceInterview } from "@/components/voice-interview"
+import type {
+  FeedbackReportResponse,
+  InterviewSessionResponse,
+  JobTargetResponse,
+  ResearchRunResponse,
+} from "@/lib/api"
 
-export type AppState = "hero" | "thinking" | "questions" | "interview" | "feedback"
+export type AppState = "hero" | "thinking" | "interview" | "feedback"
 
 export interface JobInput {
-  jobDescription: string
-  candidateName: string
-  candidateEmail: string
-  candidatePhone: string
-  candidateUniversity: string
-  candidateExperience: string
+  jobPostingUrl: string
+  firstName: string
+  email?: string
+  currentFocus?: string
 }
 
 export default function Home() {
   const [appState, setAppState] = useState<AppState>("hero")
   const [jobInput, setJobInput] = useState<JobInput>({
-    jobDescription: "",
-    candidateName: "",
-    candidateEmail: "",
-    candidatePhone: "",
-    candidateUniversity: "",
-    candidateExperience: "",
+    jobPostingUrl: "",
+    firstName: "",
+    email: "",
+    currentFocus: "",
   })
-  const [questions, setQuestions] = useState<string[]>([])
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [jobTarget, setJobTarget] = useState<JobTargetResponse | null>(null)
+  const [researchResult, setResearchResult] = useState<ResearchRunResponse | null>(null)
+  const [interviewSession, setInterviewSession] = useState<InterviewSessionResponse | null>(null)
+  const [feedback, setFeedback] = useState<FeedbackReportResponse | null>(null)
 
   const handleStartResearch = (input: JobInput) => {
     setJobInput(input)
     setAppState("thinking")
   }
 
-  const handleResearchComplete = (generatedQuestions: string[]) => {
-    setQuestions(generatedQuestions)
-    setAppState("questions")
-  }
-
-  const handleStartInterview = () => {
-    setCurrentQuestionIndex(0)
+  const handleResearchComplete = (payload: {
+    jobTarget: JobTargetResponse
+    researchResult: ResearchRunResponse
+    interviewSession: InterviewSessionResponse
+  }) => {
+    setJobTarget(payload.jobTarget)
+    setResearchResult(payload.researchResult)
+    setInterviewSession(payload.interviewSession)
     setAppState("interview")
   }
 
-  const handleInterviewComplete = () => {
+  const handleInterviewComplete = (report: FeedbackReportResponse, session: InterviewSessionResponse) => {
+    setFeedback(report)
+    setInterviewSession(session)
     setAppState("feedback")
   }
 
   const handleRestart = () => {
     setAppState("hero")
     setJobInput({
-      jobDescription: "",
-      candidateName: "",
-      candidateEmail: "",
-      candidatePhone: "",
-      candidateUniversity: "",
-      candidateExperience: "",
+      jobPostingUrl: "",
+      firstName: "",
+      email: "",
+      currentFocus: "",
     })
-    setQuestions([])
-    setCurrentQuestionIndex(0)
+    setJobTarget(null)
+    setResearchResult(null)
+    setInterviewSession(null)
+    setFeedback(null)
   }
 
   return (
     <main className="min-h-screen gradient-bg">
-      {appState === "hero" && (
-        <HeroSection onStartResearch={handleStartResearch} />
-      )}
-      
+      {appState === "hero" && <HeroSection onStartResearch={handleStartResearch} />}
+
       {appState === "thinking" && (
-        <AgentThinkingPanel 
-          jobInput={jobInput} 
-          onComplete={handleResearchComplete} 
-        />
+        <AgentThinkingPanel jobInput={jobInput} onComplete={handleResearchComplete} />
       )}
-      
-      {appState === "questions" && (
-        <InterviewQuestions 
-          questions={questions} 
-          jobInput={jobInput}
-          onStartInterview={handleStartInterview} 
-        />
-      )}
-      
-      {appState === "interview" && (
-        <VoiceInterview 
-          questions={questions}
-          currentIndex={currentQuestionIndex}
-          onNextQuestion={() => setCurrentQuestionIndex(prev => prev + 1)}
+
+      {appState === "interview" && interviewSession && jobTarget && researchResult && (
+        <VoiceInterview
+          firstName={jobInput.firstName}
+          jobTarget={jobTarget}
+          researchResult={researchResult}
+          initialSession={interviewSession}
           onComplete={handleInterviewComplete}
         />
       )}
-      
-      {appState === "feedback" && (
-        <FeedbackDashboard 
-          jobInput={jobInput}
-          onRestart={handleRestart} 
-        />
+
+      {appState === "feedback" && feedback && (
+        <FeedbackDashboard jobInput={jobInput} feedback={feedback} onRestart={handleRestart} />
       )}
     </main>
   )
