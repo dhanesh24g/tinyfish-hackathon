@@ -56,8 +56,6 @@ class Settings(BaseSettings):
             issues.append("OPENAI_API_KEY is required in production.")
         if self.database_url.startswith("sqlite"):
             issues.append("DATABASE_URL must point to Postgres in production.")
-        if not self.backend_api_key:
-            issues.append("BACKEND_API_KEY is required in production.")
 
         if issues:
             raise ValueError("Invalid production configuration: " + " ".join(issues))

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -8,6 +9,30 @@ from app.models.interview import InterviewSession, InterviewTurn
 from app.models.job_target import JobTarget
 from app.models.question import Question
 from app.models.source import Source
+
+
+def _normalize_confidence(value) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        mapping = {
+            "very_low": 0.2,
+            "low": 0.35,
+            "medium": 0.6,
+            "moderate": 0.6,
+            "high": 0.85,
+            "very_high": 0.95,
+        }
+        if normalized in mapping:
+            return mapping[normalized]
+        try:
+            return float(normalized)
+        except ValueError:
+            return None
+    return None
 
 
 class JobTargetRepository:
@@ -20,7 +45,14 @@ class JobTargetRepository:
             return existing
         item = JobTarget(job_posting_url=url)
         self.db.add(item)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except IntegrityError:
+            self.db.rollback()
+            existing = self.db.scalar(select(JobTarget).where(JobTarget.job_posting_url == url))
+            if existing:
+                return existing
+            raise
         self.db.refresh(item)
         return item
 
@@ -31,7 +63,7 @@ class JobTargetRepository:
         item.company_name = payload.get("company_name")
         item.role_title = payload.get("role_title")
         item.job_description = payload.get("job_description")
-        item.extraction_confidence = payload.get("confidence")
+        item.extraction_confidence = _normalize_confidence(payload.get("confidence"))
         item.raw_tinyfish_result = payload.get("raw_tinyfish_result")
         item.raw_page_text = payload.get("raw_page_text")
         item.status = payload.get("status", item.status)

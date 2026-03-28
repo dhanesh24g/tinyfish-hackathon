@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Bot, Brain, CheckCircle2, Globe, Loader2, Search, Sparkles } from "lucide-react"
 import type { JobInput } from "@/app/page"
+import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import {
   extractJobTarget,
@@ -21,6 +22,7 @@ interface AgentThinkingPanelProps {
     researchResult: ResearchRunResponse
     interviewSession: InterviewSessionResponse
   }) => void
+  onBack: () => void
 }
 
 const STEPS = [
@@ -30,25 +32,29 @@ const STEPS = [
   { id: 4, title: "Preparing the live interview session", icon: Brain },
 ]
 
-export function AgentThinkingPanel({ jobInput, onComplete }: AgentThinkingPanelProps) {
+export function AgentThinkingPanel({ jobInput, onComplete, onBack }: AgentThinkingPanelProps) {
   const [currentStep, setCurrentStep] = useState(0)
   const [progress, setProgress] = useState(6)
   const [logs, setLogs] = useState<string[]>([])
   const [completedSteps, setCompletedSteps] = useState<number[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let isMounted = true
     const workflowStartedAt = Date.now()
+    let startTimer: number | null = null
 
     async function runWorkflow() {
       try {
+        setError(null)
+        setCurrentStep(0)
+        setProgress(6)
+        setCompletedSteps([])
         setLogs([
           `> Initializing TinyFish interview workflow for ${jobInput.firstName}...`,
           `> Navigating to ${jobInput.jobPostingUrl}`,
         ])
-
-        setCurrentStep(0)
         const jobTarget = await extractJobTarget(jobInput.jobPostingUrl)
         if (!isMounted) return
 
@@ -117,16 +123,25 @@ export function AgentThinkingPanel({ jobInput, onComplete }: AgentThinkingPanelP
         })
       } catch (err) {
         if (!isMounted) return
+        setProgress(100)
+        setLogs((prev) => [...prev, "> TinyFish workflow aborted before the interview session could start"])
         setError(err instanceof Error ? err.message : "TinyFish workflow failed")
       }
     }
 
-    runWorkflow()
+    // React Strict Mode intentionally mounts, unmounts, and remounts in development.
+    // Delay the kickoff slightly so the throwaway mount can clean up before any network calls fire.
+    startTimer = window.setTimeout(() => {
+      void runWorkflow()
+    }, 60)
 
     return () => {
       isMounted = false
+      if (startTimer !== null) {
+        window.clearTimeout(startTimer)
+      }
     }
-  }, [jobInput, onComplete])
+  }, [attempt, jobInput, onComplete])
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
@@ -149,6 +164,21 @@ export function AgentThinkingPanel({ jobInput, onComplete }: AgentThinkingPanelP
           </div>
           <Progress value={progress} className="h-3 bg-secondary" />
         </div>
+
+        {error && (
+          <div className="mb-6 rounded-xl border border-destructive/40 bg-destructive/10 p-4">
+            <p className="text-sm font-semibold text-destructive mb-1">TinyFish hit a backend error</p>
+            <p className="text-sm text-destructive/90">{error}</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Button onClick={() => setAttempt((value) => value + 1)} className="bg-primary text-primary-foreground">
+                Retry
+              </Button>
+              <Button variant="outline" onClick={onBack}>
+                Back
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="grid md:grid-cols-2 gap-4 mb-8">
           <div className="space-y-3">

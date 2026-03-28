@@ -15,5 +15,5 @@ class ResearchAgent:
         ]
 
     async def fetch_research_sources_with_tinyfish(self, urls: list[str]) -> list[dict]:
-        results = await self.tinyfish.fetch_many_async(urls)
+        results = await self.tinyfish.fetch_many_async(urls, goal=getattr(self.tinyfish, "research_goal", None))
         return [{"url": item.url, "text": item.text, "raw": item.raw} for item in results]

@@ -24,46 +24,40 @@ interface VoiceInterviewProps {
 
 type InterviewState = "speaking" | "listening" | "idle" | "submitting"
 
-type SpeechRecognitionCtor = new () => SpeechRecognition
+type SpeechRecognitionAlternativeLike = {
+  transcript?: string
+}
+
+type SpeechRecognitionResultLike = {
+  isFinal?: boolean
+  [index: number]: SpeechRecognitionAlternativeLike
+}
+
+type SpeechRecognitionEventLike = {
+  results: ArrayLike<SpeechRecognitionResultLike>
+}
+
+type SpeechRecognitionErrorEventLike = {
+  error?: string
+}
+
+type SpeechRecognitionInstance = EventTarget & {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null
+  onend: (() => void) | null
+  start(): void
+  stop(): void
+}
+
+type SpeechRecognitionCtor = new () => SpeechRecognitionInstance
 
 declare global {
   interface Window {
     SpeechRecognition?: SpeechRecognitionCtor
     webkitSpeechRecognition?: SpeechRecognitionCtor
-  }
-
-  interface SpeechRecognition extends EventTarget {
-    continuous: boolean
-    interimResults: boolean
-    lang: string
-    onresult: ((event: SpeechRecognitionEvent) => void) | null
-    onerror: ((event: SpeechRecognitionErrorEvent) => void) | null
-    onend: (() => void) | null
-    start(): void
-    stop(): void
-  }
-
-  interface SpeechRecognitionEvent {
-    results: SpeechRecognitionResultList
-  }
-
-  interface SpeechRecognitionErrorEvent {
-    error: string
-  }
-
-  interface SpeechRecognitionResultList {
-    length: number
-    [index: number]: SpeechRecognitionResult
-  }
-
-  interface SpeechRecognitionResult {
-    isFinal: boolean
-    length: number
-    [index: number]: SpeechRecognitionAlternative
-  }
-
-  interface SpeechRecognitionAlternative {
-    transcript: string
   }
 }
 
@@ -94,7 +88,7 @@ export function VoiceInterview({
   const [interimTranscript, setInterimTranscript] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [speechSupported, setSpeechSupported] = useState(false)
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
 
   const currentQuestion = useMemo(() => getActivePrompt(session), [session])
   const totalQuestions = Math.max(researchResult.questions.length, 1)
@@ -166,8 +160,8 @@ export function VoiceInterview({
       window.speechSynthesis.cancel()
       window.speechSynthesis.speak(utterance)
     } else {
-      const timer = window.setTimeout(() => setState("idle"), 1800)
-      return () => window.clearTimeout(timer)
+      const timer = globalThis.setTimeout(() => setState("idle"), 1800)
+      return () => globalThis.clearTimeout(timer)
     }
 
     return () => {

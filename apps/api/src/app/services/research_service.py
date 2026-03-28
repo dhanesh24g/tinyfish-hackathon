@@ -4,6 +4,7 @@ import asyncio
 import json
 from collections.abc import AsyncGenerator
 
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
 from app.agents.question_agent import QuestionAgent
@@ -21,6 +22,11 @@ class ResearchService:
         self.question_repo = QuestionRepository(db)
 
     def run(self, job_target: JobTarget):
+        existing_sources = self.source_repo.list_by_job_target(job_target.id)
+        existing_questions = self.question_repo.list_by_job_target(job_target.id)
+        if existing_sources and existing_questions:
+            return existing_sources, existing_questions
+
         queries = self.research_agent.build_queries(job_target.company_name or "", job_target.role_title or "")
         documents = asyncio.run(self.research_agent.fetch_research_sources_with_tinyfish(queries))
         sources = self.source_repo.replace_for_job_target(job_target.id, documents)
@@ -40,9 +46,31 @@ class ResearchService:
         return sources, saved_questions
 
     async def stream(self, job_target: JobTarget) -> AsyncGenerator[str, None]:
+        existing_sources = self.source_repo.list_by_job_target(job_target.id)
+        existing_questions = self.question_repo.list_by_job_target(job_target.id)
+        if existing_sources and existing_questions:
+            yield (
+                "data: "
+                + json.dumps(
+                    jsonable_encoder(
+                        {
+                            "type": "complete",
+                            "job_target_id": job_target.id,
+                            "source_count": len(existing_sources),
+                            "question_count": len(existing_questions),
+                            "cached": True,
+                        }
+                    )
+                )
+                + "\n\n"
+            )
+            return
+
         queries = self.research_agent.build_queries(job_target.company_name or "", job_target.role_title or "")
         documents: list[dict] = []
-        async for update in self.research_agent.tinyfish.stream_progress(queries):
+        async for update in self.research_agent.tinyfish.stream_progress(
+            queries, goal=getattr(self.research_agent.tinyfish, "research_goal", None)
+        ):
             if update.get("status") == "completed":
                 documents.append(
                     {
@@ -51,7 +79,8 @@ class ResearchService:
                         "raw": update.get("result"),
                     }
                 )
-            yield f"data: {json.dumps({'type': 'progress', **update})}\n\n"
+            payload = jsonable_encoder({"type": "progress", **update})
+            yield f"data: {json.dumps(payload)}\n\n"
 
         sources = self.source_repo.replace_for_job_target(job_target.id, documents)
         questions = self.question_agent.extract_questions(documents)
@@ -70,12 +99,14 @@ class ResearchService:
         yield (
             "data: "
             + json.dumps(
-                {
-                    "type": "complete",
-                    "job_target_id": job_target.id,
-                    "source_count": len(sources),
-                    "question_count": len(saved_questions),
-                }
+                jsonable_encoder(
+                    {
+                        "type": "complete",
+                        "job_target_id": job_target.id,
+                        "source_count": len(sources),
+                        "question_count": len(saved_questions),
+                    }
+                )
             )
             + "\n\n"
         )

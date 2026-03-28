@@ -17,14 +17,21 @@ export function FeedbackDashboard({ jobInput, feedback, onRestart }: FeedbackDas
   const [animatedScores, setAnimatedScores] = useState<Record<string, number>>({})
   const [overallScore, setOverallScore] = useState(0)
 
+  const normalizedOverallScore = useMemo(() => {
+    const raw = Number(feedback.overall_score || 0)
+    if (!Number.isFinite(raw)) return 0
+    const percent = raw <= 1 ? raw * 100 : raw
+    return Math.max(0, Math.min(100, Math.round(percent)))
+  }, [feedback.overall_score])
+
   const scores = useMemo(
     () => [
-      { label: "Overall Readiness", value: Math.round(feedback.overall_score * 100) },
-      { label: "Role Alignment", value: Math.max(60, Math.round(feedback.overall_score * 100) - 4) },
-      { label: "Answer Quality", value: Math.max(55, Math.round(feedback.overall_score * 100) - 8) },
-      { label: "Improvement Momentum", value: Math.min(95, Math.round(feedback.overall_score * 100) + 6) },
+      { label: "Overall Readiness", value: normalizedOverallScore },
+      { label: "Role Alignment", value: Math.min(100, Math.max(60, normalizedOverallScore - 4)) },
+      { label: "Answer Quality", value: Math.min(100, Math.max(55, normalizedOverallScore - 8)) },
+      { label: "Improvement Momentum", value: Math.min(95, Math.max(0, normalizedOverallScore + 6)) },
     ],
-    [feedback.overall_score],
+    [normalizedOverallScore],
   )
 
   const calculatedOverall = Math.round(scores.reduce((acc, score) => acc + score.value, 0) / scores.length)

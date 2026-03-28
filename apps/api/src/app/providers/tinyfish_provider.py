@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+import json
 import logging
 from dataclasses import dataclass
 from typing import Any
 
-import httpx
 from bs4 import BeautifulSoup
 from readability import Document
 import trafilatura
@@ -25,21 +26,21 @@ class TinyFishResult:
 
 
 class TinyFishProvider:
-    def fetch_page(self, url: str) -> TinyFishResult:
+    def fetch_page(self, url: str, goal: str | None = None) -> TinyFishResult:
         raise NotImplementedError
 
-    async def fetch_page_async(self, url: str) -> TinyFishResult:
+    async def fetch_page_async(self, url: str, goal: str | None = None) -> TinyFishResult:
         raise NotImplementedError
 
-    async def fetch_many_async(self, urls: list[str]) -> list[TinyFishResult]:
+    async def fetch_many_async(self, urls: list[str], goal: str | None = None) -> list[TinyFishResult]:
         raise NotImplementedError
 
-    async def stream_progress(self, urls: list[str]):
+    async def stream_progress(self, urls: list[str], goal: str | None = None):
         raise NotImplementedError
 
 
 class MockTinyFishProvider(TinyFishProvider):
-    def fetch_page(self, url: str) -> TinyFishResult:
+    def fetch_page(self, url: str, goal: str | None = None) -> TinyFishResult:
         html = f"""
         <html>
           <head><title>Senior Backend Engineer at TinyFish Labs</title></head>
@@ -62,16 +63,16 @@ class MockTinyFishProvider(TinyFishProvider):
             raw={"provider": "mock_tinyfish", "url": url, "html": html, "text": text},
         )
 
-    async def fetch_page_async(self, url: str) -> TinyFishResult:
+    async def fetch_page_async(self, url: str, goal: str | None = None) -> TinyFishResult:
         await asyncio.sleep(0.35)
-        return self.fetch_page(url)
+        return self.fetch_page(url, goal=goal)
 
-    async def fetch_many_async(self, urls: list[str]) -> list[TinyFishResult]:
-        return [await self.fetch_page_async(url) for url in urls]
+    async def fetch_many_async(self, urls: list[str], goal: str | None = None) -> list[TinyFishResult]:
+        return [await self.fetch_page_async(url, goal=goal) for url in urls]
 
-    async def stream_progress(self, urls: list[str]):
+    async def stream_progress(self, urls: list[str], goal: str | None = None):
         for index, url in enumerate(urls, start=1):
-            result = await self.fetch_page_async(url)
+            result = await self.fetch_page_async(url, goal=goal)
             await asyncio.sleep(0.8)
             yield {"index": index, "total": len(urls), "url": url, "status": "completed", "result": result.raw}
 
@@ -79,8 +80,65 @@ class MockTinyFishProvider(TinyFishProvider):
 class HttpTinyFishProvider(TinyFishProvider):
     def __init__(self) -> None:
         self.settings = get_settings()
-        self.timeout = httpx.Timeout(self.settings.tinyfish_timeout_seconds)
-        self.headers = {"Authorization": f"Bearer {self.settings.tinyfish_api_key}"}
+        try:
+            from tinyfish import TinyFish
+        except ImportError as exc:  # pragma: no cover
+            raise RuntimeError(
+                "TinyFish SDK is not installed. Run `pip install -e '.[dev]'` in apps/api."
+            ) from exc
+
+        self.client = TinyFish(api_key=self.settings.tinyfish_api_key)
+        self.job_extraction_goal = (
+            "Open this job page and finish quickly. Return a structured JSON object with exactly these fields: "
+            "title, company_name, role_title, job_description, confidence, text, html. "
+            "Keep job_description concise, max 1200 characters. "
+            "Confidence must be a number between 0 and 1. "
+            "Do not browse beyond what is necessary on this page."
+        )
+        self.research_goal = (
+            "Quickly extract interview-relevant information from this page. Return a structured JSON object with: "
+            "title, text, html. Keep text concise, max 1000 characters, focusing on interview questions, "
+            "candidate experiences, or role-relevant evaluation signals. Do not spend time on unrelated content."
+        )
+
+    def _coerce_event(self, event: Any) -> dict[str, Any]:
+        if isinstance(event, dict):
+            return event
+        if hasattr(event, "model_dump"):
+            return event.model_dump()
+        if hasattr(event, "dict"):
+            return event.dict()
+        if hasattr(event, "__dict__"):
+            return dict(event.__dict__)
+        return {"value": str(event)}
+
+    def _extract_payload(self, url: str, events: list[dict[str, Any]]) -> dict[str, Any]:
+        raw: dict[str, Any] = {}
+        for event in events:
+            for key in ("resultJson", "result_json", "result", "data", "output"):
+                candidate = event.get(key)
+                if isinstance(candidate, dict):
+                    raw.update(candidate)
+                elif isinstance(candidate, str):
+                    try:
+                        parsed = json.loads(candidate)
+                    except json.JSONDecodeError:
+                        parsed = None
+                    if isinstance(parsed, dict):
+                        raw.update(parsed)
+            if not raw and event.get("type") in {"final", "complete", "completed"}:
+                raw.update(event)
+
+        if "text" not in raw:
+            raw["text"] = " ".join(
+                str(event.get("message") or event.get("text") or "").strip()
+                for event in events
+                if event.get("message") or event.get("text")
+            ).strip()
+        if "html" not in raw:
+            raw["html"] = ""
+        raw.setdefault("url", url)
+        return raw
 
     def _post_process(self, url: str, raw: dict[str, Any]) -> TinyFishResult:
         html = raw.get("html") or raw.get("content") or ""
@@ -94,50 +152,59 @@ class HttpTinyFishProvider(TinyFishProvider):
         return TinyFishResult(
             url=url,
             html=html,
-            text=extracted or raw.get("text", ""),
-            metadata=raw.get("metadata", {}),
+            text=extracted or raw.get("text", "") or raw.get("job_description", ""),
+            metadata={
+                "title": raw.get("title"),
+                "company_name": raw.get("company_name"),
+                "role_title": raw.get("role_title"),
+                **(raw.get("metadata", {}) if isinstance(raw.get("metadata"), dict) else {}),
+            },
             raw=raw,
         )
 
-    def fetch_page(self, url: str) -> TinyFishResult:
-        with httpx.Client(base_url=self.settings.tinyfish_base_url, timeout=self.timeout) as client:
-            response = client.post(
-                "/v1/browser/fetch",
-                headers=self.headers,
-                json={
-                    "url": url,
-                    "render_js": True,
-                    "stealth": self.settings.tinyfish_stealth,
-                    "return_html": True,
-                    "return_text": True,
-                },
-            )
-            response.raise_for_status()
-            return self._post_process(url, response.json())
+    def _run_agent(self, url: str, goal: str) -> list[dict[str, Any]]:
+        def _collect() -> list[dict[str, Any]]:
+            collected: list[dict[str, Any]] = []
+            with self.client.agent.stream(url=url, goal=goal) as stream:
+                for event in stream:
+                    collected.append(self._coerce_event(event))
+            return collected
 
-    async def fetch_page_async(self, url: str) -> TinyFishResult:
-        async with httpx.AsyncClient(base_url=self.settings.tinyfish_base_url, timeout=self.timeout) as client:
-            response = await client.post(
-                "/v1/browser/fetch",
-                headers=self.headers,
-                json={
-                    "url": url,
-                    "render_js": True,
-                    "stealth": self.settings.tinyfish_stealth,
-                    "return_html": True,
-                    "return_text": True,
-                },
-            )
-            response.raise_for_status()
-            return self._post_process(url, response.json())
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_collect)
+            try:
+                return future.result(timeout=self.settings.tinyfish_timeout_seconds)
+            except FutureTimeoutError as exc:
+                future.cancel()
+                raise TimeoutError(
+                    f"TinyFish timed out after {self.settings.tinyfish_timeout_seconds}s for {url}"
+                ) from exc
 
-    async def fetch_many_async(self, urls: list[str]) -> list[TinyFishResult]:
-        return await asyncio.gather(*(self.fetch_page_async(url) for url in urls))
+    def fetch_page(self, url: str, goal: str | None = None) -> TinyFishResult:
+        events: list[dict[str, Any]] = []
+        events.extend(self._run_agent(url, goal or self.job_extraction_goal))
+        return self._post_process(url, self._extract_payload(url, events))
 
-    async def stream_progress(self, urls: list[str]):
+    async def fetch_page_async(self, url: str, goal: str | None = None) -> TinyFishResult:
+        return await asyncio.to_thread(self.fetch_page, url, goal)
+
+    async def fetch_many_async(self, urls: list[str], goal: str | None = None) -> list[TinyFishResult]:
+        return await asyncio.gather(*(self.fetch_page_async(url, goal=goal) for url in urls))
+
+    async def stream_progress(self, urls: list[str], goal: str | None = None):
         for index, url in enumerate(urls, start=1):
             try:
-                result = await self.fetch_page_async(url)
+                events: list[dict[str, Any]] = []
+                events.extend(self._run_agent(url, goal or self.research_goal))
+                for payload in events:
+                    yield {
+                        "index": index,
+                        "total": len(urls),
+                        "url": url,
+                        "status": str(payload.get("type") or "running"),
+                        "event": payload,
+                    }
+                result = self._post_process(url, self._extract_payload(url, events))
                 yield {"index": index, "total": len(urls), "url": url, "status": "completed", "result": result.raw}
             except Exception as exc:  # pragma: no cover
                 logger.exception("TinyFish fetch failed for %s", url)

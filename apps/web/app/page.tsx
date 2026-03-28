@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { AgentThinkingPanel } from "@/components/agent-thinking-panel"
 import { FeedbackDashboard } from "@/components/feedback-dashboard"
 import { HeroSection } from "@/components/hero-section"
@@ -34,12 +34,12 @@ export default function Home() {
   const [interviewSession, setInterviewSession] = useState<InterviewSessionResponse | null>(null)
   const [feedback, setFeedback] = useState<FeedbackReportResponse | null>(null)
 
-  const handleStartResearch = (input: JobInput) => {
+  const handleStartResearch = useCallback((input: JobInput) => {
     setJobInput(input)
     setAppState("thinking")
-  }
+  }, [])
 
-  const handleResearchComplete = (payload: {
+  const handleResearchComplete = useCallback((payload: {
     jobTarget: JobTargetResponse
     researchResult: ResearchRunResponse
     interviewSession: InterviewSessionResponse
@@ -48,15 +48,15 @@ export default function Home() {
     setResearchResult(payload.researchResult)
     setInterviewSession(payload.interviewSession)
     setAppState("interview")
-  }
+  }, [])
 
-  const handleInterviewComplete = (report: FeedbackReportResponse, session: InterviewSessionResponse) => {
+  const handleInterviewComplete = useCallback((report: FeedbackReportResponse, session: InterviewSessionResponse) => {
     setFeedback(report)
     setInterviewSession(session)
     setAppState("feedback")
-  }
+  }, [])
 
-  const handleRestart = () => {
+  const handleRestart = useCallback(() => {
     setAppState("hero")
     setJobInput({
       jobPostingUrl: "",
@@ -68,14 +68,18 @@ export default function Home() {
     setResearchResult(null)
     setInterviewSession(null)
     setFeedback(null)
-  }
+  }, [])
 
   return (
     <main className="min-h-screen gradient-bg">
       {appState === "hero" && <HeroSection onStartResearch={handleStartResearch} />}
 
       {appState === "thinking" && (
-        <AgentThinkingPanel jobInput={jobInput} onComplete={handleResearchComplete} />
+        <AgentThinkingPanel
+          jobInput={jobInput}
+          onComplete={handleResearchComplete}
+          onBack={handleRestart}
+        />
       )}
 
       {appState === "interview" && interviewSession && jobTarget && researchResult && (
