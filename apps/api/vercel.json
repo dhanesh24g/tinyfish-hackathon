@@ -17,10 +17,7 @@
   ],
   "functions": {
     "api/**/*.py": {
-      "maxDuration": 120,
-      "regions": [
-        "sin1"
-      ]
+      "maxDuration": 120
     }
   }
 }
