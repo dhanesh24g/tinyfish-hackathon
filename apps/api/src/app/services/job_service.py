@@ -2,10 +2,14 @@ from __future__ import annotations
 
 from urllib.parse import urlparse
 
+import logging
+
 from sqlalchemy.orm import Session
 
 from app.agents.job_extraction_agent import JobExtractionAgent
 from app.services.repositories import JobTargetRepository
+
+logger = logging.getLogger(__name__)
 
 
 class JobService:
@@ -46,21 +50,28 @@ class JobService:
             and job_target.role_title
             and job_target.raw_tinyfish_result
         ):
+            logger.info(f"Returning cached job_target: company={job_target.company_name}, role={job_target.role_title}")
             return job_target
+        
+        logger.info(f"Starting TinyFish extraction for new job target: {url}")
 
         try:
             fetched = self.agent.fetch_job_posting_with_tinyfish(url)
+            logger.info(f"TinyFish extraction completed for {url}")
             # Pass TinyFish metadata to avoid re-processing (TinyFish already extracted it correctly)
             metadata = self.agent.extract_job_metadata(
                 url=url, 
                 raw_text=fetched["text"],
                 tinyfish_metadata=fetched.get("raw")  # TinyFish's extracted metadata
             )
+            logger.info(f"Extracted metadata: company={metadata.get('company_name')}, role={metadata.get('role_title')}")
             raw_tinyfish_result = fetched["raw"]
             raw_page_text = fetched["text"]
             status = "extracted"
-        except TimeoutError:
+        except TimeoutError as e:
+            logger.warning(f"TinyFish timeout for {url}, using URL fallback")
             metadata = self._fallback_metadata_from_url(url)
+            logger.info(f"Fallback metadata: company={metadata.get('company_name')}, role={metadata.get('role_title')}")
             raw_tinyfish_result = {
                 "provider": "tinyfish_sdk",
                 "url": url,

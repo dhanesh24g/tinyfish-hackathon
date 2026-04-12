@@ -60,7 +60,17 @@ class MockTinyFishProvider(TinyFishProvider):
             html=html,
             text=text,
             metadata={"title": "Senior Backend Engineer at TinyFish Labs"},
-            raw={"provider": "mock_tinyfish", "url": url, "html": html, "text": text},
+            raw={
+                "provider": "mock_tinyfish",
+                "url": url,
+                "html": html,
+                "text": text,
+                # Include structured metadata like real TinyFish
+                "company_name": "TinyFish Labs",
+                "role_title": "Senior Backend Engineer",
+                "job_description": "Build reliable Python backend services, orchestration workflows, SQL systems.",
+                "confidence": 1.0,
+            },
         )
 
     async def fetch_page_async(self, url: str, goal: str | None = None) -> TinyFishResult:
@@ -196,6 +206,9 @@ class HttpTinyFishProvider(TinyFishProvider):
         )
 
     def _run_agent(self, url: str, goal: str) -> list[dict[str, Any]]:
+        logger.info(f"TinyFish SDK call: url={url}")
+        logger.info(f"TinyFish goal: {goal[:100]}...")  # First 100 chars
+        
         def _collect() -> list[dict[str, Any]]:
             collected: list[dict[str, Any]] = []
             with self.client.agent.stream(url=url, goal=goal) as stream:
