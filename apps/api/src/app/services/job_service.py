@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from urllib.parse import urlparse
 
 import logging
@@ -43,35 +44,41 @@ class JobService:
         }
 
     def extract_job_target(self, url: str):
+        t0 = time.time()
+
+        # HOP 1: DB lookup/create
         job_target = self.repo.create(url)
+        logger.info(f"[HOP:DB_CREATE] job_target created/fetched | {time.time() - t0:.1f}s")
+
         if (
             job_target.status == "extracted"
             and job_target.company_name
             and job_target.role_title
             and job_target.raw_tinyfish_result
         ):
-            logger.info(f"Returning cached job_target: company={job_target.company_name}, role={job_target.role_title}")
+            logger.info(f"[HOP:CACHE_HIT] Returning cached | company={job_target.company_name} role={job_target.role_title} | {time.time() - t0:.1f}s")
             return job_target
-        
-        logger.info(f"Starting TinyFish extraction for new job target: {url}")
 
+        # HOP 2: TinyFish web scrape
+        t1 = time.time()
         try:
             fetched = self.agent.fetch_job_posting_with_tinyfish(url)
-            logger.info(f"TinyFish extraction completed for {url}")
-            # Pass TinyFish metadata to avoid re-processing (TinyFish already extracted it correctly)
+            logger.info(f"[HOP:TINYFISH_DONE] Scrape complete | {time.time() - t1:.1f}s")
+
+            # HOP 3: Metadata extraction
+            t2 = time.time()
             metadata = self.agent.extract_job_metadata(
                 url=url, 
                 raw_text=fetched["text"],
-                tinyfish_metadata=fetched.get("raw")  # TinyFish's extracted metadata
+                tinyfish_metadata=fetched.get("raw")
             )
-            logger.info(f"Extracted metadata: company={metadata.get('company_name')}, role={metadata.get('role_title')}")
+            logger.info(f"[HOP:METADATA] company={metadata.get('company_name')} role={metadata.get('role_title')} | {time.time() - t2:.1f}s")
             raw_tinyfish_result = fetched["raw"]
             raw_page_text = fetched["text"]
             status = "extracted"
-        except TimeoutError as e:
-            logger.warning(f"TinyFish timeout for {url}, using URL fallback")
+        except TimeoutError:
+            logger.warning(f"[HOP:TINYFISH_TIMEOUT] Timed out after {time.time() - t1:.1f}s | url={url}")
             metadata = self._fallback_metadata_from_url(url)
-            logger.info(f"Fallback metadata: company={metadata.get('company_name')}, role={metadata.get('role_title')}")
             raw_tinyfish_result = {
                 "provider": "tinyfish_sdk",
                 "url": url,
@@ -81,8 +88,7 @@ class JobService:
             raw_page_text = ""
             status = "extracted"
         except Exception as e:
-            logger.exception(f"Unexpected error during TinyFish extraction for {url}: {type(e).__name__}: {e}")
-            # Still use fallback but log the actual error
+            logger.exception(f"[HOP:TINYFISH_ERR] {type(e).__name__} after {time.time() - t1:.1f}s | {e}")
             metadata = self._fallback_metadata_from_url(url)
             raw_tinyfish_result = {
                 "provider": "tinyfish_sdk",
@@ -93,7 +99,9 @@ class JobService:
             raw_page_text = ""
             status = "extracted"
 
-        return self.repo.update_extraction(
+        # HOP 4: DB save
+        t3 = time.time()
+        result = self.repo.update_extraction(
             job_target,
             {
                 "company_name": metadata.get("company_name"),
@@ -105,6 +113,8 @@ class JobService:
                 "status": status,
             },
         )
+        logger.info(f"[HOP:DB_SAVE] Extraction saved | {time.time() - t3:.1f}s | total={time.time() - t0:.1f}s")
+        return result
 
     def get_job_target(self, job_target_id: int):
         return self.repo.get(job_target_id)
