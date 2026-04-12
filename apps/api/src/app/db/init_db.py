@@ -1,7 +1,7 @@
 from app.db.base import Base
-from app.db.session import engine
+from app.db.session import get_engine
 from app.models import all_models  # noqa: F401
 
 
 def init_db() -> None:
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=get_engine())

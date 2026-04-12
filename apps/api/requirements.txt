@@ -9,6 +9,7 @@ openai>=1.40.0
 httpx>=0.27.0
 python-dotenv>=1.0.1
 supabase>=2.7.4
+psycopg2-binary==2.9.9  # Lightweight Postgres driver for Vercel
 
 # Heavy ML dependencies - uncomment for local development with real providers
 # langchain>=0.3.0
