@@ -56,9 +56,12 @@ class InterviewWorkflow:
         }
 
     def extract_job_metadata(self, state: InterviewGraphState) -> InterviewGraphState:
+        # Pass TinyFish metadata to avoid re-processing and ensure correct company extraction
+        tinyfish_raw = state.get("raw_tinyfish_job_extraction_output")
         metadata = self.job_agent.extract_job_metadata(
-            state["job_posting_url"],
-            state["extracted_job_metadata"]["raw_text"],
+            url=state["job_posting_url"],
+            raw_text=state["extracted_job_metadata"]["raw_text"],
+            tinyfish_metadata=tinyfish_raw,
         )
         return {"extracted_job_metadata": metadata}
 
