@@ -26,10 +26,10 @@ class TinyFishResult:
 
 
 class TinyFishProvider:
-    def fetch_page(self, url: str, goal: str | None = None, browser_profile: str | None = None) -> TinyFishResult:
+    def fetch_page(self, url: str, goal: str | None = None) -> TinyFishResult:
         raise NotImplementedError
 
-    async def fetch_page_async(self, url: str, goal: str | None = None, browser_profile: str | None = None) -> TinyFishResult:
+    async def fetch_page_async(self, url: str, goal: str | None = None) -> TinyFishResult:
         raise NotImplementedError
 
     async def fetch_many_async(self, urls: list[str], goal: str | None = None) -> list[TinyFishResult]:
@@ -40,7 +40,7 @@ class TinyFishProvider:
 
 
 class MockTinyFishProvider(TinyFishProvider):
-    def fetch_page(self, url: str, goal: str | None = None, browser_profile: str | None = None) -> TinyFishResult:
+    def fetch_page(self, url: str, goal: str | None = None) -> TinyFishResult:
         html = f"""
         <html>
           <head><title>Senior Backend Engineer at TinyFish Labs</title></head>
@@ -73,7 +73,7 @@ class MockTinyFishProvider(TinyFishProvider):
             },
         )
 
-    async def fetch_page_async(self, url: str, goal: str | None = None, browser_profile: str | None = None) -> TinyFishResult:
+    async def fetch_page_async(self, url: str, goal: str | None = None) -> TinyFishResult:
         await asyncio.sleep(0.35)
         return self.fetch_page(url, goal=goal)
 
@@ -203,14 +203,14 @@ class HttpTinyFishProvider(TinyFishProvider):
             raw=raw,
         )
 
-    def _run_agent(self, url: str, goal: str, browser_profile: str = "lite") -> list[dict[str, Any]]:
+    def _run_agent(self, url: str, goal: str) -> list[dict[str, Any]]:
         import time
         t0 = time.time()
-        logger.info(f"[HOP:TINYFISH_REQ] Sending request to TinyFish | profile={browser_profile} | url={url}")
+        logger.info(f"[HOP:TINYFISH_REQ] Sending request to TinyFish | url={url}")
         
         def _collect() -> list[dict[str, Any]]:
             collected: list[dict[str, Any]] = []
-            with self.client.agent.stream(url=url, goal=goal, browser_profile=browser_profile) as stream:
+            with self.client.agent.stream(url=url, goal=goal) as stream:
                 for event in stream:
                     try:
                         collected.append(self._coerce_event(event))
@@ -234,10 +234,9 @@ class HttpTinyFishProvider(TinyFishProvider):
                 logger.exception(f"[HOP:TINYFISH_ERR] Stream failed | {time.time() - t0:.1f}s | {type(exc).__name__}: {exc}")
                 raise
 
-    def fetch_page(self, url: str, goal: str | None = None, browser_profile: str | None = None) -> TinyFishResult:
-        profile = browser_profile or ("stealth" if self.settings.tinyfish_stealth else "lite")
+    def fetch_page(self, url: str, goal: str | None = None) -> TinyFishResult:
         events: list[dict[str, Any]] = []
-        events.extend(self._run_agent(url, goal or self.job_extraction_goal, browser_profile=profile))
+        events.extend(self._run_agent(url, goal or self.job_extraction_goal))
         payload = self._extract_payload(url, events)
         
         # Check for failure signals per TinyFish docs
@@ -246,8 +245,8 @@ class HttpTinyFishProvider(TinyFishProvider):
         
         return self._post_process(url, payload)
 
-    async def fetch_page_async(self, url: str, goal: str | None = None, browser_profile: str | None = None) -> TinyFishResult:
-        return await asyncio.to_thread(self.fetch_page, url, goal, browser_profile)
+    async def fetch_page_async(self, url: str, goal: str | None = None) -> TinyFishResult:
+        return await asyncio.to_thread(self.fetch_page, url, goal)
 
     async def fetch_many_async(self, urls: list[str], goal: str | None = None) -> list[TinyFishResult]:
         return await asyncio.gather(*(self.fetch_page_async(url, goal=goal) for url in urls))
@@ -259,7 +258,7 @@ class HttpTinyFishProvider(TinyFishProvider):
         async def _fetch_one(index: int, url: str) -> dict:
             try:
                 result = await asyncio.to_thread(
-                    self.fetch_page, url, goal or self.research_goal, "lite"
+                    self.fetch_page, url, goal or self.research_goal
                 )
                 return {"index": index, "total": total, "url": url, "status": "completed", "result": result.raw}
             except TimeoutError:
