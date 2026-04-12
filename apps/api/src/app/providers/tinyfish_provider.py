@@ -87,6 +87,9 @@ class HttpTinyFishProvider(TinyFishProvider):
                 "TinyFish SDK is not installed. Run `pip install tinyfish>=0.2.5`."
             ) from exc
 
+        # Initialize TinyFish SDK
+        # Note: Timeout is handled at the wrapper level via ThreadPoolExecutor
+        # The SDK doesn't expose a timeout parameter in its constructor
         self.client = TinyFish(api_key=self.settings.tinyfish_api_key)
         self.job_extraction_goal = (
             "Open this job page and extract the job posting details. Return a structured JSON object with exactly these fields: "
@@ -114,6 +117,16 @@ class HttpTinyFishProvider(TinyFishProvider):
             return dict(event.__dict__)
         return {"value": str(event)}
 
+    def _check_for_failure_signals(self, result: dict[str, Any]) -> bool:
+        """Check if TinyFish result contains failure signals.
+        
+        Per TinyFish docs: COMPLETED status doesn't mean success.
+        Check for: captcha, blocked, access denied, etc.
+        """
+        result_str = str(result).lower()
+        failure_signals = ["captcha", "blocked", "access denied", "forbidden", "rate limit", "cloudflare"]
+        return any(signal in result_str for signal in failure_signals)
+    
     def _extract_payload(self, url: str, events: list[dict[str, Any]]) -> dict[str, Any]:
         raw: dict[str, Any] = {}
         for event in events:
@@ -203,7 +216,13 @@ class HttpTinyFishProvider(TinyFishProvider):
     def fetch_page(self, url: str, goal: str | None = None) -> TinyFishResult:
         events: list[dict[str, Any]] = []
         events.extend(self._run_agent(url, goal or self.job_extraction_goal))
-        return self._post_process(url, self._extract_payload(url, events))
+        payload = self._extract_payload(url, events)
+        
+        # Check for failure signals per TinyFish docs
+        if self._check_for_failure_signals(payload):
+            logger.warning("TinyFish detected failure signals (captcha/blocked) for %s", url)
+        
+        return self._post_process(url, payload)
 
     async def fetch_page_async(self, url: str, goal: str | None = None) -> TinyFishResult:
         return await asyncio.to_thread(self.fetch_page, url, goal)
@@ -226,6 +245,15 @@ class HttpTinyFishProvider(TinyFishProvider):
                     }
                 result = self._post_process(url, self._extract_payload(url, events))
                 yield {"index": index, "total": len(urls), "url": url, "status": "completed", "result": result.raw}
+            except TimeoutError as exc:  # Specific timeout handling
+                logger.warning("TinyFish timeout for %s after %ds", url, self.settings.tinyfish_timeout_seconds)
+                yield {
+                    "index": index,
+                    "total": len(urls),
+                    "url": url,
+                    "status": "timeout",
+                    "error": f"Timeout after {self.settings.tinyfish_timeout_seconds}s",
+                }
             except Exception as exc:  # pragma: no cover
                 logger.exception("TinyFish fetch failed for %s", url)
                 yield {"index": index, "total": len(urls), "url": url, "status": "failed", "error": str(exc)}

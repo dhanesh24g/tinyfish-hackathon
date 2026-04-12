@@ -51,7 +51,7 @@ class Settings(BaseSettings):
 
     tinyfish_api_key: str | None = Field(default=None, alias="TINYFISH_API_KEY")
     tinyfish_base_url: str = Field(default="https://api.tinyfish.ai", alias="TINYFISH_BASE_URL")
-    tinyfish_timeout_seconds: int = Field(default=45, alias="TINYFISH_TIMEOUT_SECONDS")
+    tinyfish_timeout_seconds: int = Field(default=60, alias="TINYFISH_TIMEOUT_SECONDS")  # Per TinyFish docs: browser sessions take 10-30s
     tinyfish_stealth: bool = Field(default=True, alias="TINYFISH_STEALTH")
     tinyfish_use_mock: bool = Field(default=True, alias="TINYFISH_USE_MOCK")
 
