@@ -51,7 +51,7 @@ class Settings(BaseSettings):
 
     tinyfish_api_key: str | None = Field(default=None, alias="TINYFISH_API_KEY")
     tinyfish_base_url: str = Field(default="https://api.tinyfish.ai", alias="TINYFISH_BASE_URL")
-    tinyfish_timeout_seconds: int = Field(default=90, alias="TINYFISH_TIMEOUT_SECONDS")  # Per TinyFish docs: complex pages can take 60-90s
+    tinyfish_timeout_seconds: int = Field(default=55, alias="TINYFISH_TIMEOUT_SECONDS")  # Vercel Hobby plan: 60s max function duration
     tinyfish_stealth: bool = Field(default=True, alias="TINYFISH_STEALTH")
     tinyfish_use_mock: bool = Field(default=True, alias="TINYFISH_USE_MOCK")
 
