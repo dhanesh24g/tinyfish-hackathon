@@ -91,6 +91,7 @@ export function VoiceInterview({
   const [micPermissionGranted, setMicPermissionGranted] = useState(false)
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
   const lastQuestionRef = useRef<string>("")
+  const resultIndexRef = useRef<number>(0)
 
   const currentQuestion = useMemo(() => getActivePrompt(session), [session])
   const totalQuestions = Math.max(researchResult.questions.length, 1)
@@ -128,11 +129,12 @@ export function VoiceInterview({
         let finalText = ""
         let interimText = ""
 
-        for (let i = 0; i < event.results.length; i += 1) {
+        for (let i = resultIndexRef.current; i < event.results.length; i += 1) {
           const result = event.results[i]
           const text = result[0]?.transcript ?? ""
           if (result.isFinal) {
             finalText += text
+            resultIndexRef.current = i + 1
           } else {
             interimText += text
           }
@@ -218,6 +220,7 @@ export function VoiceInterview({
     setRecordingTime(0)
     setIsRecording(true)
     setState("listening")
+    resultIndexRef.current = 0
     recognitionRef.current?.start()
   }
 
@@ -225,6 +228,7 @@ export function VoiceInterview({
     recognitionRef.current?.stop()
     setIsRecording(false)
     setState("idle")
+    resultIndexRef.current = 0
   }
 
   const handleRepeatQuestion = () => {
