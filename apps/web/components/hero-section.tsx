@@ -40,19 +40,19 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
       </div>
 
       <div className="relative z-10 w-full max-w-7xl">
-        <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-4 mb-6 md:mb-5">
-          <div className="relative">
-            <div className="w-14 h-14 md:w-16 md:h-16 rounded-full glass neon-border flex items-center justify-center animate-pulse-glow">
-              <Brain className="w-7 h-7 md:w-9 md:h-9 text-primary" />
+        <div className="flex flex-col items-center justify-center mb-10 md:mb-14">
+          <div className="relative mb-8 md:mb-12 group">
+            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full glass neon-border flex items-center justify-center animate-pulse-glow transition-transform duration-300 group-hover:scale-105">
+              <Brain className="w-8 h-8 md:w-10 md:h-10 text-primary" />
             </div>
-            <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-primary animate-pulse" />
+            <Sparkles className="absolute -top-1 -right-1 w-5 h-5 text-primary animate-pulse" />
           </div>
-          <div className="text-center md:text-left">
-            <h1 className="text-2xl sm:text-3xl md:text-[3.15rem] font-bold leading-tight mb-2">
+          <div className="text-center">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-5">
               <span className="neon-text text-primary">AI Voice</span>{" "}
               <span className="text-foreground">Interview Agent</span>
             </h1>
-            <p className="text-sm sm:text-base md:text-xl text-muted-foreground max-w-4xl">
+            <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
               Start from a live job posting URL and let TinyFish prepare a researched, voice-ready mock interview.
             </p>
           </div>
@@ -64,7 +64,7 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
           <FeatureBadge icon={<Brain className="w-4 h-4" />} text="Adaptive Feedback" />
         </div>
 
-        <form onSubmit={handleSubmit} className="glass-card rounded-2xl md:rounded-[1.5rem] p-5 md:p-6 neon-border shadow-2xl">
+        <form onSubmit={handleSubmit} className="glass-card rounded-2xl md:rounded-[1.5rem] p-6 md:p-8 neon-border shadow-2xl transition-all duration-300 hover:shadow-primary/10 hover:shadow-3xl">
           <div className="grid lg:grid-cols-2 gap-5 md:gap-5">
             <section className="space-y-3">
               <div>
