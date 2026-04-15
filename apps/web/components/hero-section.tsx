@@ -48,11 +48,11 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
             <Sparkles className="absolute -top-1 -right-1 w-5 h-5 text-primary animate-pulse" />
           </div>
           <div className="text-center">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold leading-tight mb-5">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-5">
               <span className="neon-text text-primary">AI Voice</span>{" "}
               <span className="text-foreground">Interview Agent</span>
             </h1>
-            <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
               Start from a live job posting URL and let TinyFish prepare a researched, voice-ready mock interview.
             </p>
           </div>
@@ -64,7 +64,7 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
           <FeatureBadge icon={<Brain className="w-4 h-4" />} text="Adaptive Feedback" />
         </div>
 
-        <form onSubmit={handleSubmit} className="glass-card rounded-2xl md:rounded-[1.5rem] p-5 md:p-6 neon-border shadow-2xl transition-all duration-300 hover:shadow-primary/10 hover:shadow-3xl">
+        <form onSubmit={handleSubmit} className="glass-card rounded-2xl md:rounded-[1.5rem] p-6 md:p-8 neon-border shadow-2xl transition-all duration-300 hover:shadow-primary/10 hover:shadow-3xl">
           <div className="grid lg:grid-cols-2 gap-5 md:gap-5">
             <section className="space-y-3">
               <div>
