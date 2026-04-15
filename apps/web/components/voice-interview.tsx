@@ -88,7 +88,9 @@ export function VoiceInterview({
   const [interimTranscript, setInterimTranscript] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [speechSupported, setSpeechSupported] = useState(false)
+  const [micPermissionGranted, setMicPermissionGranted] = useState(false)
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
+  const lastQuestionRef = useRef<string>("")
 
   const currentQuestion = useMemo(() => getActivePrompt(session), [session])
   const totalQuestions = Math.max(researchResult.questions.length, 1)
@@ -96,9 +98,27 @@ export function VoiceInterview({
   const progressCount = Math.min(answeredQuestions + 1, totalQuestions)
 
   useEffect(() => {
+    const requestMicPermission = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        stream.getTracks().forEach(track => track.stop())
+        setMicPermissionGranted(true)
+      } catch (err) {
+        console.error("Microphone permission denied:", err)
+        setError("Microphone permission is required for voice answers. Please enable it in your browser settings.")
+      }
+    }
+
     const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition
     if (SpeechRecognitionImpl) {
       setSpeechSupported(true)
+
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+        requestMicPermission()
+      } else {
+        setMicPermissionGranted(true)
+      }
+
       const recognition = new SpeechRecognitionImpl()
       recognition.continuous = true
       recognition.interimResults = true
@@ -119,6 +139,11 @@ export function VoiceInterview({
         }
 
         if (finalText) {
+          const lowerText = finalText.toLowerCase()
+          if (lowerText.includes("repeat") || lowerText.includes("repeat the question") || lowerText.includes("say that again") || lowerText.includes("what was the question")) {
+            handleRepeatQuestion()
+            return
+          }
           setTranscript((prev) => `${prev} ${finalText}`.trim())
         }
         setInterimTranscript(interimText.trim())
@@ -146,6 +171,11 @@ export function VoiceInterview({
   }, [])
 
   useEffect(() => {
+    if (currentQuestion === lastQuestionRef.current) {
+      return
+    }
+
+    lastQuestionRef.current = currentQuestion
     setTranscript("")
     setInterimTranscript("")
     setError(null)
@@ -195,6 +225,24 @@ export function VoiceInterview({
     recognitionRef.current?.stop()
     setIsRecording(false)
     setState("idle")
+  }
+
+  const handleRepeatQuestion = () => {
+    window.speechSynthesis?.cancel()
+    recognitionRef.current?.stop()
+    setIsRecording(false)
+    setState("speaking")
+
+    const utterance = new SpeechSynthesisUtterance(currentQuestion)
+    utterance.rate = 0.98
+    utterance.pitch = 1
+    utterance.onend = () => setState("idle")
+
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.speak(utterance)
+    } else {
+      setState("idle")
+    }
   }
 
   const handleSubmitAnswer = async () => {
@@ -287,13 +335,16 @@ export function VoiceInterview({
         <div className="glass-card rounded-3xl p-6 md:p-12 neon-border mb-6 md:mb-8">
           <div className="flex justify-center mb-6 md:mb-8">
             <div className="relative">
-              <div
-                className={`w-28 h-28 md:w-32 md:h-32 rounded-full glass flex items-center justify-center transition-all duration-300 ${state === "speaking"
+              <button
+                onClick={handleRepeatQuestion}
+                disabled={state === "submitting"}
+                className={`w-28 h-28 md:w-32 md:h-32 rounded-full glass flex items-center justify-center transition-all duration-300 cursor-pointer hover:scale-105 disabled:cursor-not-allowed disabled:hover:scale-100 ${state === "speaking"
                   ? "animate-pulse-glow ring-4 ring-primary/30"
                   : state === "listening"
                     ? "ring-4 ring-destructive/30"
                     : ""
                   }`}
+                title="Click to repeat the question"
               >
                 {state === "speaking" ? (
                   <Volume2 className="w-12 h-12 md:w-14 md:h-14 text-primary animate-pulse" />
@@ -304,7 +355,7 @@ export function VoiceInterview({
                 ) : (
                   <Mic className="w-12 h-12 md:w-14 md:h-14 text-muted-foreground" />
                 )}
-              </div>
+              </button>
             </div>
           </div>
 
@@ -365,11 +416,11 @@ export function VoiceInterview({
               <Button
                 size="lg"
                 onClick={handleStartRecording}
-                disabled={!speechSupported || state === "speaking" || state === "submitting"}
+                disabled={!speechSupported || !micPermissionGranted || state === "speaking" || state === "submitting"}
                 className="min-h-[48px] px-8 text-base font-semibold bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50"
               >
                 <Mic className="w-5 h-5 mr-2" />
-                {speechSupported ? "Start Voice Answer" : "Speech Not Supported"}
+                {!speechSupported ? "Speech Not Supported" : !micPermissionGranted ? "Microphone Permission Required" : "Start Voice Answer"}
               </Button>
             ) : (
               <Button
@@ -397,7 +448,7 @@ export function VoiceInterview({
 
         <div className="glass rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground text-center sm:text-left">
-            Voice mode uses browser text-to-speech for the AI and browser speech-to-text for your answer. You can always edit or type before sending.
+            Voice mode uses browser text-to-speech for the AI and browser speech-to-text for your answer. Click the speaker icon or say &quot;repeat&quot; to hear the question again. You can always edit or type before sending.
           </p>
           <Button variant="outline" onClick={handleEndInterview} disabled={state === "submitting"}>
             {state === "submitting" ? (
