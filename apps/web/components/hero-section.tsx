@@ -40,19 +40,19 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
       </div>
 
       <div className="relative z-10 w-full max-w-7xl">
-        <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-4 mb-6 md:mb-5">
-          <div className="relative">
-            <div className="w-14 h-14 md:w-16 md:h-16 rounded-full glass neon-border flex items-center justify-center animate-pulse-glow">
-              <Brain className="w-7 h-7 md:w-9 md:h-9 text-primary" />
+        <div className="flex flex-col items-center justify-center mb-8 md:mb-10">
+          <div className="relative mb-6 md:mb-8">
+            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full glass neon-border flex items-center justify-center animate-pulse-glow">
+              <Brain className="w-8 h-8 md:w-10 md:h-10 text-primary" />
             </div>
-            <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-primary animate-pulse" />
+            <Sparkles className="absolute -top-1 -right-1 w-5 h-5 text-primary animate-pulse" />
           </div>
-          <div className="text-center md:text-left">
-            <h1 className="text-2xl sm:text-3xl md:text-[3.15rem] font-bold leading-tight mb-2">
+          <div className="text-center">
+            <h1 className="text-3xl sm:text-4xl md:text-[3.5rem] font-bold leading-tight mb-4">
               <span className="neon-text text-primary">AI Voice</span>{" "}
               <span className="text-foreground">Interview Agent</span>
             </h1>
-            <p className="text-sm sm:text-base md:text-xl text-muted-foreground max-w-4xl">
+            <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
               Start from a live job posting URL and let TinyFish prepare a researched, voice-ready mock interview.
             </p>
           </div>
