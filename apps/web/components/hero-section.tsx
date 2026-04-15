@@ -31,12 +31,13 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8 md:py-12 relative overflow-hidden">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-48 h-48 md:w-96 md:h-96 rounded-full bg-primary/10 blur-3xl animate-float" />
+        <div className="absolute inset-0 hero-backlight" />
+        <div className="absolute top-1/4 left-1/4 w-48 h-48 md:w-96 md:h-96 rounded-full bg-primary/7 blur-3xl animate-float" />
         <div
-          className="absolute bottom-1/4 right-1/4 w-40 h-40 md:w-80 md:h-80 rounded-full bg-accent/10 blur-3xl animate-float"
+          className="absolute bottom-1/4 right-1/4 w-40 h-40 md:w-80 md:h-80 rounded-full bg-accent/7 blur-3xl animate-float"
           style={{ animationDelay: "1s" }}
         />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[240px] h-[240px] md:w-[620px] md:h-[620px] rounded-full border border-primary/10 animate-spin-slow" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[240px] h-[240px] md:w-[620px] md:h-[620px] rounded-full border border-primary/8 animate-spin-slow" />
       </div>
 
       <div className="relative z-10 w-full max-w-7xl">
@@ -49,7 +50,7 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
           </div>
           <div className="text-center">
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-5">
-              <span className="neon-text text-primary">AI Voice</span>{" "}
+              <span className="ai-voice-text">AI Voice</span>{" "}
               <span className="text-foreground">Interview Agent</span>
             </h1>
             <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
