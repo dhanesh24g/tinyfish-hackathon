@@ -1,6 +1,6 @@
 # API Service
 
-FastAPI backend for the TinyFish AI mock interview platform.
+FastAPI backend for the AI Interview Agent platform.
 
 ## Local Development
 

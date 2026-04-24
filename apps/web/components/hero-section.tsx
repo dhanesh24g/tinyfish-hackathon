@@ -54,13 +54,13 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
               <span className="text-foreground">Interview Agent</span>
             </h1>
             <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              Start from a live job posting URL and let TinyFish prepare a researched, voice-ready mock interview.
+              Start from a live job posting URL and let the AI Interview Agent prepare a researched, voice-ready mock interview.
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap justify-center gap-2 md:gap-3 mb-6 md:mb-5">
-          <FeatureBadge icon={<Search className="w-4 h-4" />} text="TinyFish Research" />
+          <FeatureBadge icon={<Search className="w-4 h-4" />} text="Smart Research" />
           <FeatureBadge icon={<Mic className="w-4 h-4" />} text="Voice Interview" />
           <FeatureBadge icon={<Brain className="w-4 h-4" />} text="Adaptive Feedback" />
         </div>
@@ -163,7 +163,7 @@ export function HeroSection({ onStartResearch }: HeroSectionProps) {
         </form>
 
         <p className="text-center text-xs sm:text-sm text-muted-foreground mt-6">
-          Powered by TinyFish web intelligence, backend orchestration, and browser voice APIs
+          Powered by intelligent web research, backend orchestration, and browser voice APIs
         </p>
       </div>
     </div>

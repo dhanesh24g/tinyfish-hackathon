@@ -45,7 +45,7 @@ def root() -> str:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TinyFish AI API</title>
+    <title>AI Interview Agent API</title>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <link rel="icon" type="image/png" href="/static/favicon.png">
     <link rel="apple-touch-icon" href="/static/logo.png">
@@ -56,8 +56,8 @@ def root() -> str:
     </style>
 </head>
 <body>
-    <h1>🐟 TinyFish AI API</h1>
-    <p>Welcome to the TinyFish AI Mock Interview API.</p>
+    <h1>AI Interview Agent API</h1>
+    <p>Welcome to the AI Interview Agent API.</p>
     <ul>
         <li><a href="/health">Health Check</a></li>
         <li><a href="/docs">API Documentation</a></li>

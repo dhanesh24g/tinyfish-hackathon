@@ -1,0 +1,68 @@
+# Version control
+.git
+.gitignore
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Python bytecode / caches
+__pycache__
+**/__pycache__
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv
+venv
+env
+ENV
+
+# Packaging / build artifacts
+build
+dist
+*.egg-info
+**/*.egg-info
+.eggs
+pip-wheel-metadata
+
+# Test / coverage / lint caches
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+.coverage.*
+htmlcov
+.tox
+
+# IDE / OS
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+
+# Vercel / Node (not needed in container)
+.vercel
+vercel.json
+node_modules
+package-lock.json
+
+# Local SQLite dev database
+*.db
+*.sqlite
+*.sqlite3
+
+# Docs / misc
+README.md
+*.md
+LICENSE
+
+# Docker itself
+Dockerfile
+.dockerignore
+
+# Tests & evaluation (optional; keep if you run them in-container)
+tests
+evaluation
