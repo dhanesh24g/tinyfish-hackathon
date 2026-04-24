@@ -13,7 +13,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "TinyFish AI Mock Interview"
+    app_name: str = "AI Interview Agent"
     app_env: str = "local"
     app_host: str = "0.0.0.0"
     app_port: int = 8000

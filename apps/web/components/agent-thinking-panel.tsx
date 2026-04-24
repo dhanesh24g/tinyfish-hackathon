@@ -27,7 +27,7 @@ interface AgentThinkingPanelProps {
 
 const STEPS = [
   { id: 1, title: "Extracting the job posting", icon: Globe },
-  { id: 2, title: "TinyFish browsing dynamic sources", icon: Search },
+  { id: 2, title: "Browsing dynamic sources", icon: Search },
   { id: 3, title: "Ranking interview signals", icon: Sparkles },
   { id: 4, title: "Preparing the live interview session", icon: Brain },
 ]
@@ -157,8 +157,8 @@ export function AgentThinkingPanel({ jobInput, onComplete, onBack }: AgentThinki
       } catch (err) {
         if (!isMounted) return
         setProgress(100)
-        setLogs((prev) => [...prev, "> TinyFish workflow aborted before the interview session could start"])
-        setError(err instanceof Error ? err.message : "TinyFish workflow failed")
+        setLogs((prev) => [...prev, "> Workflow aborted before the interview session could start"])
+        setError(err instanceof Error ? err.message : "Workflow failed")
       }
     }
 
@@ -183,9 +183,9 @@ export function AgentThinkingPanel({ jobInput, onComplete, onBack }: AgentThinki
           <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-full glass neon-border mb-4 animate-pulse-glow">
             <Brain className="w-8 h-8 md:w-10 md:h-10 text-primary animate-pulse" />
           </div>
-          <h2 className="text-xl md:text-3xl font-bold text-foreground mb-2">TinyFish Is Working</h2>
+          <h2 className="text-xl md:text-3xl font-bold text-foreground mb-2">AI Interview Agent Is Working</h2>
           <p className="text-sm md:text-base text-muted-foreground">
-            TinyFish is browsing the job posting, collecting interview intelligence, and preparing the live session for{" "}
+            The agent is browsing the job posting, collecting interview intelligence, and preparing the live session for{" "}
             <span className="text-primary font-medium">{jobInput.firstName}</span>
           </p>
         </div>
@@ -200,7 +200,7 @@ export function AgentThinkingPanel({ jobInput, onComplete, onBack }: AgentThinki
 
         {error && (
           <div className="mb-6 rounded-xl border border-destructive/40 bg-destructive/10 p-4">
-            <p className="text-sm font-semibold text-destructive mb-1">TinyFish hit a backend error</p>
+            <p className="text-sm font-semibold text-destructive mb-1">Backend error</p>
             <p className="text-sm text-destructive/90">{error}</p>
             <div className="mt-4 flex flex-wrap gap-3">
               <Button onClick={() => setAttempt((value) => value + 1)} className="bg-primary text-primary-foreground">
@@ -264,7 +264,7 @@ export function AgentThinkingPanel({ jobInput, onComplete, onBack }: AgentThinki
               <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-destructive/80" />
               <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-warning" />
               <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-primary" />
-              <span className="ml-2 text-xs md:text-sm text-muted-foreground font-mono">tinyfish.scrape.log</span>
+              <span className="ml-2 text-xs md:text-sm text-muted-foreground font-mono">agent.scrape.log</span>
             </div>
 
             <div className="mb-3 md:mb-4 rounded-xl border border-primary/20 bg-primary/5 p-3 md:p-4">
@@ -273,7 +273,7 @@ export function AgentThinkingPanel({ jobInput, onComplete, onBack }: AgentThinki
                   <Bot className="w-4 h-4 md:w-5 md:h-5" />
                 </div>
                 <div>
-                  <p className="text-xs md:text-sm font-semibold text-foreground">TinyFish browser worker</p>
+                  <p className="text-xs md:text-sm font-semibold text-foreground">Browser worker</p>
                   <p className="text-xs text-muted-foreground">Interactive scraping for JS-rendered job and research pages</p>
                 </div>
               </div>

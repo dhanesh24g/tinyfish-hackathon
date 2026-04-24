@@ -103,7 +103,7 @@ export async function streamResearch(
   })
 
   if (!response.ok || !response.body) {
-    throw new Error("Unable to start TinyFish research stream")
+    throw new Error("Unable to start research stream")
   }
 
   const reader = response.body.getReader()

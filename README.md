@@ -1,12 +1,12 @@
-# TinyFish AI Mock Interview Monorepo
+# AI Interview Agent Monorepo
 
-Monorepo for the TinyFish AI mock interview platform. The repository is structured so backend and frontend can evolve independently while sharing architecture docs, deployment conventions, and integration contracts.
+Monorepo for the AI Interview Agent platform. The repository is structured so backend and frontend can evolve independently while sharing architecture docs, deployment conventions, and integration contracts.
 
 ## Repository Layout
 
 ```text
 apps/
-  api/   # FastAPI backend, LangGraph orchestration, TinyFish integration
+  api/   # FastAPI backend, LangGraph orchestration, web research integration
   web/   # Frontend app boundary for the Vercel UI
 docs/    # Shared architecture and onboarding docs
 ```
