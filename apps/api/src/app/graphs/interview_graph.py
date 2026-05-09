@@ -68,14 +68,20 @@ class InterviewWorkflow:
     def fetch_research_sources_with_tinyfish(self, state: InterviewGraphState) -> InterviewGraphState:
         company_name = state["extracted_job_metadata"].get("company_name", "")
         role_title = state["extracted_job_metadata"].get("role_title", "")
-        queries = self.research_agent.build_queries(company_name, role_title)
+        job_description = state["extracted_job_metadata"].get("job_description", "")
+        queries = self.research_agent.build_queries(company_name, role_title, job_description)
         documents = asyncio.run(self.research_agent.fetch_research_sources_with_tinyfish(queries))
         return {"raw_research_documents": documents}
 
     def extract_questions(self, state: InterviewGraphState) -> InterviewGraphState:
-        questions = self.question_agent.extract_questions(state.get("raw_research_documents", []))
+        metadata = state["extracted_job_metadata"]
+        questions = self.question_agent.extract_questions(
+            state.get("raw_research_documents", []),
+            company_name=metadata.get("company_name", ""),
+            role_title=metadata.get("role_title", ""),
+            job_description=metadata.get("job_description", ""),
+        )
         if not questions:
-            metadata = state["extracted_job_metadata"]
             questions = self.question_agent.fallback_questions(
                 company_name=metadata.get("company_name", ""),
                 role_title=metadata.get("role_title", ""),

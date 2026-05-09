@@ -83,11 +83,11 @@ class SourceRepository:
             items = [
                 Source(
                     job_target_id=job_target_id,
-                    source_url=document["url"],
+                    source_url=document.get("url", ""),
                     source_type="research",
                     raw_tinyfish_result=document.get("raw"),
                     parsed_text=document.get("text"),
-                    fetch_status="completed",
+                    fetch_status=document.get("fetch_status", "completed"),
                 )
                 for document in documents
             ]
