@@ -21,10 +21,6 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Public/build-time env (override at build via --build-arg if needed).
-ARG NEXT_PUBLIC_API_BASE_URL
-ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
-
 RUN npm run build
 
 # ---------- Runtime stage ----------
