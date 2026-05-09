@@ -81,7 +81,7 @@ Use separate Vercel projects for cleaner operational boundaries.
 
 Frontend should call the backend using:
 
-- `NEXT_PUBLIC_API_BASE_URL`
+- `API_BASE_URL` at runtime through `apps/web/app/api/config/route.ts`
 
 ## Environment Files
 

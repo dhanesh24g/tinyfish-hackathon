@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const apiBaseUrl = (process.env.API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '')
+
 const nextConfig = {
   output: 'standalone',
   typescript: {
@@ -9,13 +11,13 @@ const nextConfig = {
   },
   async rewrites() {
     // Local dev convenience: proxy /api/* to the FastAPI server on :8000.
-    // Production builds (Vercel / ECS) talk to the API directly via
-    // NEXT_PUBLIC_API_BASE_URL, so no rewrite is needed there.
+    // Production builds (Vercel / ECS / Cloud Run) load API_BASE_URL at runtime
+    // through /api/config, so no rewrite is needed there.
     if (process.env.NODE_ENV !== 'development') return []
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:8000/:path*',
+        destination: `${apiBaseUrl}/:path*`,
       },
     ]
   },

@@ -1,11 +1,4 @@
-// Central API base URL config.
-// Priority:
-//   1. NEXT_PUBLIC_API_BASE_URL  (Vercel env var, or Docker --build-arg on AWS ECS)
-//   2. http://localhost:8000     (local dev fallback when no env var is set)
-// NOTE: This value is inlined at BUILD time because it's a NEXT_PUBLIC_* var.
-//       In Docker it must be passed via --build-arg, not just runtime env.
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "http://localhost:8000"
+import { getConfig } from "@/lib/config"
 
 export interface JobTargetResponse {
   id: number
@@ -67,7 +60,8 @@ export interface FeedbackReportResponse {
 }
 
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const { apiBaseUrl } = await getConfig()
+  const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -102,7 +96,8 @@ export async function streamResearch(
   jobTargetId: number,
   onMessage: (payload: Record<string, unknown>) => void,
 ) {
-  const response = await fetch(`${API_BASE_URL}/research/run`, {
+  const { apiBaseUrl } = await getConfig()
+  const response = await fetch(`${apiBaseUrl}/research/run`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ job_target_id: jobTargetId, stream: true }),
