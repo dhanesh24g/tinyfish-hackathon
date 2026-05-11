@@ -27,10 +27,19 @@ class ResearchService:
         if existing_sources and existing_questions:
             return existing_sources, existing_questions
 
-        queries = self.research_agent.build_queries(job_target.company_name or "", job_target.role_title or "")
+        queries = self.research_agent.build_queries(
+            job_target.company_name or "",
+            job_target.role_title or "",
+            job_target.job_description or "",
+        )
         documents = asyncio.run(self.research_agent.fetch_research_sources_with_tinyfish(queries))
         sources = self.source_repo.replace_for_job_target(job_target.id, documents)
-        questions = self.question_agent.extract_questions(documents)
+        questions = self.question_agent.extract_questions(
+            documents,
+            company_name=job_target.company_name or "",
+            role_title=job_target.role_title or "",
+            job_description=job_target.job_description or "",
+        )
         if not questions:
             questions = self.question_agent.fallback_questions(
                 company_name=job_target.company_name or "",
@@ -66,7 +75,11 @@ class ResearchService:
             )
             return
 
-        queries = self.research_agent.build_queries(job_target.company_name or "", job_target.role_title or "")
+        queries = self.research_agent.build_queries(
+            job_target.company_name or "",
+            job_target.role_title or "",
+            job_target.job_description or "",
+        )
         documents: list[dict] = []
         async for update in self.research_agent.tinyfish.stream_progress(
             queries, goal=getattr(self.research_agent.tinyfish, "research_goal", None)
@@ -77,13 +90,28 @@ class ResearchService:
                         "url": update.get("url", ""),
                         "text": (update.get("result") or {}).get("text", ""),
                         "raw": update.get("result"),
+                        "fetch_status": "completed",
+                    }
+                )
+            elif update.get("status") in {"timeout", "failed"}:
+                documents.append(
+                    {
+                        "url": update.get("url", ""),
+                        "text": "",
+                        "raw": {"error": update.get("error"), "fetch_status": update.get("status")},
+                        "fetch_status": update.get("status"),
                     }
                 )
             payload = jsonable_encoder({"type": "progress", **update})
             yield f"data: {json.dumps(payload)}\n\n"
 
         sources = self.source_repo.replace_for_job_target(job_target.id, documents)
-        questions = self.question_agent.extract_questions(documents)
+        questions = self.question_agent.extract_questions(
+            documents,
+            company_name=job_target.company_name or "",
+            role_title=job_target.role_title or "",
+            job_description=job_target.job_description or "",
+        )
         if not questions:
             questions = self.question_agent.fallback_questions(
                 company_name=job_target.company_name or "",

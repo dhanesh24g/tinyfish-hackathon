@@ -203,6 +203,15 @@ class HttpTinyFishProvider(TinyFishProvider):
             raw=raw,
         )
 
+    def _failed_result(self, url: str, status: str, error: str) -> TinyFishResult:
+        raw = {
+            "provider": "tinyfish_sdk",
+            "url": url,
+            "fetch_status": status,
+            "error": error,
+        }
+        return TinyFishResult(url=url, html="", text="", metadata={"fetch_status": status}, raw=raw)
+
     def _run_agent(self, url: str, goal: str) -> list[dict[str, Any]]:
         import time
         t0 = time.time()
@@ -223,21 +232,23 @@ class HttpTinyFishProvider(TinyFishProvider):
                         continue
             return collected
 
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(_collect)
-            try:
-                result = future.result(timeout=self.settings.tinyfish_timeout_seconds)
-                logger.info(f"[HOP:TINYFISH_RES] Response received from TinyFish | {len(result)} events | {time.time() - t0:.1f}s")
-                return result
-            except FutureTimeoutError as exc:
-                future.cancel()
-                logger.error(f"[HOP:TINYFISH_TIMEOUT] No response within {self.settings.tinyfish_timeout_seconds}s | elapsed={time.time() - t0:.1f}s | url={url}")
-                raise TimeoutError(
-                    f"TinyFish timed out after {self.settings.tinyfish_timeout_seconds}s for {url}"
-                ) from exc
-            except Exception as exc:
-                logger.exception(f"[HOP:TINYFISH_ERR] Stream failed | {time.time() - t0:.1f}s | {type(exc).__name__}: {exc}")
-                raise
+        executor = ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(_collect)
+        try:
+            result = future.result(timeout=self.settings.tinyfish_timeout_seconds)
+            logger.info(f"[HOP:TINYFISH_RES] Response received from TinyFish | {len(result)} events | {time.time() - t0:.1f}s")
+            return result
+        except FutureTimeoutError as exc:
+            future.cancel()
+            logger.error(f"[HOP:TINYFISH_TIMEOUT] No response within {self.settings.tinyfish_timeout_seconds}s | elapsed={time.time() - t0:.1f}s | url={url}")
+            raise TimeoutError(
+                f"TinyFish timed out after {self.settings.tinyfish_timeout_seconds}s for {url}"
+            ) from exc
+        except Exception as exc:
+            logger.exception(f"[HOP:TINYFISH_ERR] Stream failed | {time.time() - t0:.1f}s | {type(exc).__name__}: {exc}")
+            raise
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
 
     def fetch_page(self, url: str, goal: str | None = None) -> TinyFishResult:
         events: list[dict[str, Any]] = []
@@ -247,6 +258,10 @@ class HttpTinyFishProvider(TinyFishProvider):
         # Check for failure signals per TinyFish docs
         if self._check_for_failure_signals(payload):
             logger.warning("TinyFish detected failure signals (captcha/blocked) for %s", url)
+            payload.setdefault("fetch_status", "blocked")
+            payload.setdefault("error", "TinyFish response contained failure signals.")
+        else:
+            payload.setdefault("fetch_status", "completed")
         
         return self._post_process(url, payload)
 
@@ -254,7 +269,17 @@ class HttpTinyFishProvider(TinyFishProvider):
         return await asyncio.to_thread(self.fetch_page, url, goal)
 
     async def fetch_many_async(self, urls: list[str], goal: str | None = None) -> list[TinyFishResult]:
-        return await asyncio.gather(*(self.fetch_page_async(url, goal=goal) for url in urls))
+        async def _safe_fetch(url: str) -> TinyFishResult:
+            try:
+                return await self.fetch_page_async(url, goal=goal)
+            except TimeoutError as exc:
+                logger.warning("TinyFish timeout for %s after %ds", url, self.settings.tinyfish_timeout_seconds)
+                return self._failed_result(url, "timeout", str(exc))
+            except Exception as exc:  # pragma: no cover
+                logger.exception("TinyFish fetch failed for %s", url)
+                return self._failed_result(url, "failed", str(exc))
+
+        return await asyncio.gather(*(_safe_fetch(url) for url in urls))
 
     async def stream_progress(self, urls: list[str], goal: str | None = None):
         """Fetch all research URLs in parallel and yield results as they complete."""

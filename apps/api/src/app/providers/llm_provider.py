@@ -13,7 +13,13 @@ class LLMProvider:
     def extract_job_metadata(self, raw_text: str, url: str) -> dict[str, Any]:
         raise NotImplementedError
 
-    def extract_questions(self, context: str) -> list[dict[str, Any]]:
+    def extract_questions(
+        self,
+        context: str,
+        company_name: str = "",
+        role_title: str = "",
+        job_description: str = "",
+    ) -> list[dict[str, Any]]:
         raise NotImplementedError
 
     def infer_questions_from_jd(self, company_name: str, role_title: str, job_description: str) -> list[dict[str, Any]]:
@@ -41,9 +47,19 @@ class MockLLMProvider(LLMProvider):
             "confidence": 0.89,
         }
 
-    def extract_questions(self, context: str) -> list[dict[str, Any]]:
+    def extract_questions(
+        self,
+        context: str,
+        company_name: str = "",
+        role_title: str = "",
+        job_description: str = "",
+    ) -> list[dict[str, Any]]:
         return [
-            {"text": "Tell me about yourself.", "category": "behavioral", "importance": 0.95},
+            {
+                "text": f"Walk me through a recent project that maps to the {role_title or 'target role'} responsibilities.",
+                "category": "behavioral",
+                "importance": 0.95,
+            },
             {"text": "How would you design a scalable FastAPI backend?", "category": "technical", "importance": 0.92},
             {"text": "Describe a time you improved reliability in production.", "category": "behavioral", "importance": 0.83},
         ]
@@ -119,18 +135,46 @@ class OpenAILLMProvider(LLMProvider):
         )
         return self._json_completion(PromptTemplate.from_template(template).format(url=url, raw_text=raw_text))
 
-    def extract_questions(self, context: str) -> list[dict[str, Any]]:
+    def extract_questions(
+        self,
+        context: str,
+        company_name: str = "",
+        role_title: str = "",
+        job_description: str = "",
+    ) -> list[dict[str, Any]]:
         template = (
-            "Extract interview questions from the following research context. "
-            "Return {{'questions': [{{'text': ..., 'category': ..., 'importance': 0-1}}]}}.\n{context}"
+            "You are building a high-signal mock interview for a candidate.\n"
+            "Generate 8 questions that are specific to the company, role, and job posting. "
+            "Use the research context when it contains real interview patterns, but do not copy "
+            "low-quality, generic, or SEO listicle questions. Prioritize realistic questions an "
+            "interviewer would ask for this exact role.\n\n"
+            "Rules:\n"
+            "- Include a balanced mix of technical, system_design, behavioral, role_fit, and company_fit questions.\n"
+            "- Make each question answerable in a voice interview in 60-120 seconds.\n"
+            "- Tie questions to named responsibilities, technologies, products, customer problems, or evaluation signals when available.\n"
+            "- Avoid generic questions like 'Tell me about yourself' unless rewritten around the role context.\n"
+            "- Return JSON only: {{'questions': [{{'text': string, 'category': string, 'importance': number}}]}}.\n\n"
+            "Company: {company_name}\n"
+            "Role: {role_title}\n"
+            "Job posting context:\n{job_description}\n\n"
+            "Research context:\n{context}"
         )
-        payload = self._json_completion(PromptTemplate.from_template(template).format(context=context))
+        payload = self._json_completion(
+            PromptTemplate.from_template(template).format(
+                context=context[:6000],
+                company_name=company_name,
+                role_title=role_title,
+                job_description=job_description[:3000],
+            )
+        )
         return payload.get("questions", [])
 
     def infer_questions_from_jd(self, company_name: str, role_title: str, job_description: str) -> list[dict[str, Any]]:
         template = (
-            "Infer likely interview questions from this job description. "
-            "Return {{'questions': [{{'text': ..., 'category': ..., 'importance': 0-1}}]}}.\n"
+            "Infer 8 strong, role-specific mock interview questions from this job description. "
+            "Avoid generic questions; make each question reflect the responsibilities, required skills, "
+            "and company context. "
+            "Return {{'questions': [{{'text': string, 'category': string, 'importance': number}}]}}.\n"
             "Company: {company_name}\nRole: {role_title}\nJob Description:\n{job_description}"
         )
         payload = self._json_completion(
