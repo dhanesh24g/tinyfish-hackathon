@@ -1,20 +1,42 @@
-API_DIR=apps/api
-WEB_DIR=apps/web
+# Variables
+API_DIR = apps/api
+WEB_DIR = apps/web
 
-.PHONY: api-install api-dev api-test api-migrate api-lint
+# Phony targets tell Make these are actions, not actual files
+.PHONY: api-install api-dev api-test api-migrate api-lint chmod-scripts stop start capture-infra
 
+# Installs editable package with development dependencies
 api-install:
-	cd $(API_DIR) && pip install -e .[dev]
+	pip install -e $(API_DIR)/.[dev]
 
+# Launches the Uvicorn development server
 api-dev:
-	cd $(API_DIR) && uvicorn app.main:app --app-dir src --reload
+	uvicorn app.main:app --app-dir $(API_DIR)/src --reload
 
+# Runs the test suite using Pytest
 api-test:
-	cd $(API_DIR) && python3 -m pytest
+	python3 -m pytest $(API_DIR)
 
+# Runs database migrations using Alembic (uses -c to point to config file)
 api-migrate:
-	cd $(API_DIR) && alembic upgrade head
+	alembic -c $(API_DIR)/alembic.ini upgrade head
 
+# Lints the codebase using Ruff
 api-lint:
-	cd $(API_DIR) && ruff check src tests
+	ruff check $(API_DIR)/src $(API_DIR)/tests
 
+# Makes all shell scripts executable
+chmod-scripts:
+	chmod +x infra/scripts/*.sh
+
+# AWS ECS — stop all services (saves compute cost)
+stop:
+	./infra/scripts/stop.sh
+
+# AWS ECS — start all services
+start:
+	./infra/scripts/start.sh
+
+# Capture current AWS infrastructure state to infra/backups/
+capture-infra:
+	./infra/scripts/capture-infra.sh

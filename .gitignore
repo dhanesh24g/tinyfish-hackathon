@@ -19,3 +19,12 @@ coverage/
 apps/api/test.db
 apps/api/tinyfish_ai.db
 
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+
+# AWS backup files
+infra/backups/
