@@ -23,11 +23,6 @@ variable "cluster_id" {
   type        = string
 }
 
-variable "cluster_name" {
-  description = "ECS cluster name"
-  type        = string
-}
-
 variable "api_task_def_arn" {
   description = "API task definition ARN"
   type        = string
@@ -38,22 +33,22 @@ variable "web_task_def_arn" {
   type        = string
 }
 
-variable "api_target_group" {
+variable "api_target_group_arn" {
   description = "API target group ARN"
   type        = string
 }
 
-variable "web_target_group" {
+variable "web_target_group_arn" {
   description = "Web target group ARN"
   type        = string
 }
 
-variable "web_security_group" {
+variable "web_security_group_id" {
   description = "Web security group ID"
   type        = string
 }
 
-variable "api_security_group" {
+variable "api_security_group_id" {
   description = "API security group ID"
   type        = string
 }

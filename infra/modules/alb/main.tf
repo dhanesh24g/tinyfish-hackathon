@@ -6,10 +6,9 @@ resource "aws_lb" "main" {
   name               = "${var.app_name}-alb"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [var.alb_security_group]
+  security_groups    = [var.alb_security_group_id]
   subnets            = var.subnet_ids
-
-  idle_timeout = 120
+  idle_timeout       = 120
 
   tags = {
     Name = "${var.app_name}-alb"
@@ -91,7 +90,7 @@ resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.main.arn
   port              = 443
   protocol          = "HTTPS"
-  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09"
   certificate_arn   = var.acm_certificate_arn
 
   default_action {
